@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智在家鄉 - PM2.5 監測系統</title>
+  
+  <!-- 載入 Leaflet CSS (地圖用) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- 載入 Google Material Symbols 圖示庫 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  
+  <style>
+    /* 全局樣式 */
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; 
+      background-color: #f0f4f9; 
+      color: #1f1f1f;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* 側邊欄 (Sidebar) 樣式 */
+    .sidebar {
+      width: 260px;
+      background-color: #f0f4f9;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      transition: width 0.3s ease;
+      flex-shrink: 0;
+    }
+    
+    /* 側邊欄收合時的狀態 */
+    .sidebar.collapsed { width: 72px; }
+    .sidebar.collapsed .menu-text { display: none; }
+    .sidebar.collapsed .sidebar-section-title { display: none; }
+
+    /* 頂部漢堡選單按鈕 */
+    .menu-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      margin-bottom: 24px;
+      transition: background 0.2s;
+    }
+    .menu-toggle:hover { background-color: #e0e4e9; }
+
+    /* 區塊標題 */
+    .sidebar-section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #444746;
+      padding: 12px 16px;
+      margin-top: 10px;
+    }
+
+    /* 選單項目 */
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-radius: 50px; 
+      cursor: pointer;
+      margin-bottom: 4px;
+      font-size: 15px;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .menu-item:hover { background-color: #e0e4e9; }
+    
+    /* 選單項目啟用時的狀態 */
+    .menu-item.active {
+      background-color: #d3e3fd;
+      color: #041e49;
+      font-weight: bold;
+    }
+    .menu-item.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+
+    /* 底部設定區塊撐到底部 */
+    .sidebar-spacer { flex-grow: 1; }
+    .settings-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #1a73e8;
+      border-radius: 50%;
+      margin-left: auto;
+    }
+
+    /* 主畫面內容區 */
+    .main-content {
+      flex-grow: 1;
+      background-color: #ffffff;
+      border-radius: 24px 24px 0 0; 
+      margin-top: 12px;
+      margin-right: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+
+    /* 頁面切換容器 */
+    .view-section { display: none; height: 100%; overflow-y: auto; }
+    .view-section.active { display: block; }
+
+    /* 各區塊專屬樣式 */
+    #view-home { padding: 40px; text-align: center; }
+    .hero-card { max-width: 800px; margin: 40px auto; }
+    .hero-card h1 { color: #2c3e50; font-size: 28px; }
+    .hero-card p { line-height: 1.8; color: #666; font-size: 18px; text-align: left; }
+
+    #map { width: 100%; height: 100%; position: relative; }
+    .legend { position: absolute; right: 18px; bottom: 32px; z-index: 999; background: rgba(0, 0, 0, 0.72); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.9; }
+    .legend-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+
+    #view-data { padding: 30px; }
+    .data-header { padding-bottom: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    
+    /* 重新整理按鈕樣式 */
+    .refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: #ffffff;
+      border: 1px solid #c7c7c7;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      color: #1a73e8;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .refresh-btn:hover {
+      background-color: #f0f4f9;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .refresh-btn .material-symbols-outlined { font-size: 18px; }
+
+    /* 表格樣式 */
+    .data-title-group h2 { margin: 0; font-size: 20px; color: #1f1f1f; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 15px; }
+    th, td { padding: 16px 12px; border-bottom: 1px solid #f0f0f0; }
+    th { color: #444746; font-weight: bold; position: sticky; top: 0; background: #fff;}
+    tr:hover { background-color: #f8f9fa; }
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #000; }
+  </style>
+</head>
+<body>
+
+  <!-- 左側邊欄 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()">
+      <span class="material-symbols-outlined">menu</span>
+    </div>
+
+    <div class="menu-item active" onclick="switchTab('home', this)">
+      <span class="material-symbols-outlined">home</span>
+      <span class="menu-text">專案介紹</span>
+    </div>
+    
+    <div class="sidebar-section-title">數據與圖表</div>
+    
+    <div class="menu-item" onclick="switchTab('map', this)">
+      <span class="material-symbols-outlined">explore</span>
+      <span class="menu-text">即時地圖</span>
+    </div>
+    
+    <div class="menu-item" onclick="switchTab('data', this)">
+      <span class="material-symbols-outlined">dataset</span>
+      <span class="menu-text">數據後台</span>
+    </div>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </div>
+  </aside>
+
+  <!-- 右側主畫面區 -->
+  <main class="main-content">
+    
+    <!-- 1. 首頁區塊 -->
+    <div id="view-home" class="view-section active">
+      <div class="hero-card">
+        <h1>呼吸萬華：群眾參與式移動空污感測與粉塵收集平台</h1>
+        <p>這是我們為「智在家鄉」競賽打造的環境監測雛形系統。</p>
+        <p>我們透過自製的感測節點，實時收集環境中的微物聯網數據 (包含 PM2.5 濃度、GPS 經緯度)，並將資料回傳至 Google Sheets 雲端資料庫。</p>
+        <p style="background: #f0f4f9; padding: 16px; border-radius: 12px; margin-top: 30px;">
+          <strong>💡 提示：</strong>請點擊左側選單切換至「即時地圖」或「數據後台」查看。
+        </p>
+      </div>
+    </div>
+
+    <!-- 2. 地圖區塊 -->
+    <div id="view-map" class="view-section">
+      <div id="map"></div>
+      <div class="legend">
+        <div style="font-weight: 700; margin-bottom: 4px;">PM2.5 濃度（µg/m³）</div>
+        <div><span class="legend-dot" style="background:#00e400"></span>良好 0 - 15.4</div>
+        <div><span class="legend-dot" style="background:#ffff00"></span>普通 15.5 - 35.4</div>
+        <div><span class="legend-dot" style="background:#ff7e00"></span>對敏感族群不健康 35.5 - 54.4</div>
+        <div><span class="legend-dot" style="background:#ff0000"></span>對所有族群不健康 54.5 - 150.4</div>
+        <div><span class="legend-dot" style="background:#8f3f97"></span>非常不健康 150.5 - 250.4</div>
+        <div><span class="legend-dot" style="background:#7e0023"></span>危害 250.5 以上</div>
+      </div>
+    </div>
+
+    <!-- 3. 數據區塊 -->
+    <div id="view-data" class="view-section">
+      <div class="data-header">
+        <div class="data-title-group">
+          <h2>Google Sheets 原始數據紀錄</h2>
+          <span id="data-status" style="color: #444746; font-size: 14px;">資料讀取中...</span>
+        </div>
+        <!-- 完整的更新按鈕 -->
+        <button class="refresh-btn" onclick="refreshData()">
+          <span class="material-symbols-outlined">refresh</span>
+          更新數據
+        </button>
+      </div>
+      
+      <!-- ★ 這裡就是之前遺失的完整表格與滾動容器 ★ -->
+      <div style="overflow-y: auto; height: calc(100vh - 180px);">
+        <table>
+          <thead>
+            <tr>
+              <th>時間戳記</th>
+              <th>PM2.5 (µg/m³)</th>
+              <th>狀態等級</th>
+              <th>緯度</th>
+              <th>經度</th>
+              <th>衛星數</th>
+            </tr>
+          </thead>
+          <tbody id="data-table-body">
+            <!-- JavaScript 抓到資料後會塞進這裡 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 外部套件載入 -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <!-- 模組化 JS 檔案 -->
+  <script src="js/ui.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
