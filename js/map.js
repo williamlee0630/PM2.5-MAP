@@ -1,7 +1,7 @@
 // js/map.js
 let mapInitialized = false; 
 let bounds = []; 
-let latestLatLng = null; // ★ 新增：用來紀錄最新一筆資料的座標
+let latestLatLng = null;
 
 const map = L.map('map').setView([25.094, 121.546], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -31,13 +31,24 @@ function getStatus(pm25) {
 function clearMapMarkers() {
   markersLayer.clearLayers();
   bounds = [];
-  latestLatLng = null; // ★ 清空時也一併忘記舊的最新座標
-  mapInitialized = false;
+  latestLatLng = null;
+  // ★ 修復點：已經移除了 mapInitialized = false; 
+  // 這樣地圖就不會每 10 秒重置一次使用者的自訂視角了
 }
 
-// ★ 修改：加入 isLatest 參數，用來判斷這是不是最新資料
 function addMarkerToMap(point, isLatest = false) {
   const pm25Val = point.pm25;
+  const showHotspotsOnly = document.getElementById('setting-hotspots').checked;
+
+  if (isLatest) {
+    latestLatLng = [point.latitude, point.longitude];
+  }
+
+  // 如果勾選僅顯示熱區，且數值小於 35.5 (良好或普通)，則不畫點
+  if (showHotspotsOnly && pm25Val < 35.5) {
+    return;
+  }
+
   const statusTxt = getStatus(pm25Val);
   const colorHex = getColor(pm25Val);
 
@@ -51,26 +62,22 @@ function addMarkerToMap(point, isLatest = false) {
   );
   
   bounds.push([point.latitude, point.longitude]);
-
-  // ★ 如果這是最新的一筆，就把它的經緯度存起來
-  if (isLatest) {
-    latestLatLng = [point.latitude, point.longitude];
-  }
 }
 
 function refreshMapLayout() {
   setTimeout(() => {
     map.invalidateSize(); 
     
-    // ★ 修改：優先檢查有沒有最新座標，有的話就「飛」過去
-    if (latestLatLng) {
-      // flyTo 會有平滑的移動動畫。16 是縮放級別 (越大越近)
+    const autoTrack = document.getElementById('setting-autotrack').checked;
+    
+    if (autoTrack && latestLatLng) {
+      // 若開啟自動追蹤，飛向最新點位
       map.flyTo(latestLatLng, 16, { animate: true, duration: 1.2 });
     } else if (!mapInitialized && bounds.length > 0) {
-      // 備用：如果沒有最新座標，就顯示全部點位
+      // ★ 現在這個 fitBounds 只會在網頁「第一次」載入地圖時執行了
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
+      mapInitialized = true; 
     }
     
-    mapInitialized = true;
   }, 100);
 }
