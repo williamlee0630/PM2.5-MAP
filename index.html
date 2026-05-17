@@ -103,6 +103,40 @@
     .contact-list li { margin-bottom: 8px; }
     .contact-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
     .contact-btn:hover { background: #1557b0; }
+
+    /* =========================================
+       手機版專屬樣式 (螢幕寬度小於 768px 時觸發)
+       ========================================= */
+    @media (max-width: 768px) {
+      /* 縮小地圖圖例 */
+      .legend {
+        right: 10px;           /* 距離右邊稍微縮短 */
+        bottom: 24px;          /* 稍微往下移，避免擋住地圖中心 */
+        padding: 8px 12px;     /* 縮小內邊距 */
+        font-size: 11px;       /* 縮小字體 */
+        line-height: 1.5;      /* 縮小行高 */
+      }
+      
+      /* 縮小圖例標題 */
+      .legend div:first-child {
+        font-size: 12px !important; 
+        margin-bottom: 2px !important;
+      }
+
+      /* 縮小圖例旁邊的顏色圓點 */
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        margin-right: 5px;
+      }
+      
+      /* 順便優化：手機版時，把主畫面的圓角稍微改小，邊距也縮減以爭取空間 */
+      .main-content {
+        border-radius: 16px 16px 0 0;
+        margin-top: 8px;
+        margin-right: 8px;
+      }
+    }
   </style>
 </head>
 <body>
