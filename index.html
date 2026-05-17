@@ -108,34 +108,54 @@
        手機版專屬樣式 (螢幕寬度小於 768px 時觸發)
        ========================================= */
     @media (max-width: 768px) {
-      /* 縮小地圖圖例 */
-      .legend {
-        right: 10px;           /* 距離右邊稍微縮短 */
-        bottom: 24px;          /* 稍微往下移，避免擋住地圖中心 */
-        padding: 8px 12px;     /* 縮小內邊距 */
-        font-size: 11px;       /* 縮小字體 */
-        line-height: 1.5;      /* 縮小行高 */
+      /* --- 1. 地圖圖例優化 (保留您之前的設定) --- */
+      .legend { right: 10px; bottom: 24px; padding: 8px 12px; font-size: 11px; line-height: 1.5; }
+      .legend div:first-child { font-size: 12px !important; margin-bottom: 2px !important; }
+      .legend-dot { width: 10px; height: 10px; margin-right: 5px; }
+      .main-content { border-radius: 16px 16px 0 0; margin-top: 8px; margin-right: 8px; }
+
+      /* --- 2. 數據後台：按鈕區塊優化 --- */
+      .data-header {
+        flex-direction: column; /* 讓標題和按鈕變成上下排列 */
+        align-items: flex-start;
+        padding: 20px 15px;
+        gap: 16px;
       }
-      
-      /* 縮小圖例標題 */
-      .legend div:first-child {
-        font-size: 12px !important; 
-        margin-bottom: 2px !important;
+      .btn-group {
+        width: 100%; /* 按鈕群組佔滿寬度 */
+        display: flex;
+        gap: 10px;
+      }
+      .action-btn {
+        flex: 1; /* 讓兩個按鈕平分寬度 */
+        justify-content: center; /* 讓按鈕內的文字與圖示置中 */
+        padding: 10px 4px;
+        font-size: 13px; /* 字體稍微調小適應螢幕 */
       }
 
-      /* 縮小圖例旁邊的顏色圓點 */
-      .legend-dot {
-        width: 10px;
-        height: 10px;
-        margin-right: 5px;
+      /* --- 3. 數據後台：表格區塊優化 (改為左右滑動) --- */
+      /* 針對包住表格的那個 div 設定 */
+      #view-data > div:nth-of-type(2) {
+        overflow-x: auto; /* 允許內容超出時產生橫向卷軸 */
+        -webkit-overflow-scrolling: touch; /* 讓 iOS 手機滑動起來更順暢 */
+      }
+      table {
+        min-width: 650px; /* 強制表格最少要有 650px 寬，這樣就不會被螢幕擠壓 */
+        font-size: 14px;
+      }
+      th, td {
+        padding: 12px 15px;
+        white-space: nowrap; /* ★ 核心關鍵：嚴格禁止文字自動換行或變成垂直 ★ */
+      }
+      .status-badge {
+        display: inline-block; /* 確保標籤的圓角和形狀正常 */
+        white-space: nowrap;
       }
       
-      /* 順便優化：手機版時，把主畫面的圓角稍微改小，邊距也縮減以爭取空間 */
-      .main-content {
-        border-radius: 16px 16px 0 0;
-        margin-top: 8px;
-        margin-right: 8px;
-      }
+      /* --- 4. 圖表分析頁面與設定頁面優化 --- */
+      .charts-wrapper { padding: 0 15px 20px 15px; }
+      .settings-container { padding: 20px 15px; }
+      .setting-row { flex-direction: column; gap: 12px; }
     }
   </style>
 </head>
