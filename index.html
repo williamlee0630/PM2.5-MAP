@@ -1,7 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<!DOCTYPE html>
-<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,7 +7,6 @@
   <title>呼吸台北：群眾參與式移動空污感測與粉塵收集平台 | 智在家鄉</title>
   
   <meta name="description" content="參與智在家鄉競賽的「呼吸台北」專案，透過群眾參與及自製移動式微型感測器，即時收集大台北地區 PM2.5 與空氣品質數據，打造專屬台北的空污地圖。" />
-  
   <meta name="keywords" content="智在家鄉, 空氣品質, PM2.5, 微型感測器, 空污地圖, 環境監測, 呼吸台北" />
   <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
 
@@ -50,8 +47,15 @@
     /* 首頁與地圖 */
     #view-home { padding: 40px; text-align: center; }
     .hero-card { max-width: 800px; margin: 40px auto; }
-    .hero-card h1 { color: #2c3e50; font-size: 28px; }
-    .hero-card p { line-height: 1.8; color: #666; font-size: 18px; text-align: left; }
+    .hero-card h1 { color: #2c3e50; font-size: 28px; margin-bottom: 24px; }
+    
+    /* ★ 新增：SEO 文章排版樣式 */
+    .hero-content { text-align: left; }
+    .hero-content h2 { font-size: 20px; color: #1a73e8; margin-top: 30px; margin-bottom: 12px; border-bottom: 2px solid #eaf1fd; padding-bottom: 8px; }
+    .hero-content p { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; }
+    .hero-image-placeholder { width: 100%; height: 300px; background-color: #eaf1fd; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #1a73e8; font-weight: bold; margin-bottom: 24px; }
+    .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
     #map { width: 100%; height: 100%; position: relative; }
     .legend { position: absolute; right: 18px; bottom: 32px; z-index: 999; background: rgba(0, 0, 0, 0.72); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.9; }
     .legend-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
@@ -128,8 +132,21 @@
     <div id="view-home" class="view-section active">
       <div class="hero-card">
         <h1>呼吸台北：群眾參與式移動空污感測與粉塵收集平台</h1>
-        <p>這是我們為「智在家鄉」競賽打造的環境監測雛形系統。</p>
-        <p>我們透過自製的感測節點，實時收集環境中的微物聯網數據，並回傳至雲端資料庫。</p>
+        
+        <div class="hero-content">
+          <div class="hero-image-placeholder">
+            <span class="material-symbols-outlined" style="font-size: 48px; margin-right: 12px;">add_photo_alternate</span>
+            此處預留給專案圖片 (記得加上 alt 屬性)
+          </div>
+          <h2>專案緣起與目標</h2>
+          <p>這是我們團隊參與<strong>「智在家鄉」競賽</strong>所打造的環境監測雛形系統。我們觀察到傳統的空氣品質監測站通常為定點式，無法反映出巷弄間真實的空污狀況。因此，我們希望透過<strong>群眾參與 (Crowdsourcing)</strong> 的力量，讓居住在台北地區的居民，在日常通勤或散步時攜帶小型感測器，幫助我們補齊微型氣候的空污地圖。</p>
+          
+          <h2>技術架構與數據收集</h2>
+          <p>本專案結合了<strong>物聯網 (IoT) 技術</strong>與<strong>微型感測器</strong>。志工攜帶的裝置會實時收集環境中的微物聯網數據，包含高精度的 <strong>PM2.5 濃度</strong>與 GPS 經緯度定位。這些環境監測數據會透過網路，即時回傳至 Google Sheets 雲端資料庫，並呈現在這個互動式網頁平台上。</p>
+          
+          <h2>如何使用本平台？</h2>
+          <p>您可以透過左側導覽列切換功能：點擊<strong>「即時地圖」</strong>可觀看目前大台北市各區域的空氣品質熱區；進入<strong>「數據後台」</strong>則可檢視最原始的感測紀錄；若想了解整體趨勢，<strong>「圖表分析」</strong>提供了直觀的折線圖與比例分佈，讓生硬的環境數據也能清楚易懂。</p>
+        </div>
       </div>
     </div>
 
