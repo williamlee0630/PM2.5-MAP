@@ -29,6 +29,28 @@
     "keywords": "台北空氣品質, PM2.5, 移動空污感測, 智在家鄉, 物聯網感測"
   }
   </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [{
+      "@type": "Question",
+      "name": "什麼是呼吸台北專案？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "呼吸台北是一個群眾參與式的移動空污感測平台，由志工攜帶微型感測器，結合物聯網技術，即時收集大台北地區街道級別的 PM2.5 數據。"
+      }
+    }, {
+      "@type": "Question",
+      "name": "如何查詢台北市即時的 PM2.5 與空氣品質？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "可透過呼吸台北平台的即時地圖與數據後台，觀看大台北市各區域的空氣品質熱區、PM2.5 濃度折線圖與原始感測數據。"
+      }
+    }]
+  }
+  </script>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
@@ -70,7 +92,11 @@
     .hero-content { text-align: left; }
     .hero-content h2 { font-size: 20px; color: #1a73e8; margin-top: 30px; margin-bottom: 12px; border-bottom: 2px solid #eaf1fd; padding-bottom: 8px; }
     .hero-content p { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; }
-    .hero-content ul { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; padding-left: 24px; } /* 新增：列表樣式 */
+    .hero-content ul { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; padding-left: 24px; }
+    
+    /* ★ 新增：AI 關鍵字語意標記 (mark) 樣式 ★ */
+    mark { background-color: #fff2cc; color: #1f1f1f; padding: 0 4px; border-radius: 4px; font-weight: bold; }
+
     .hero-image-placeholder { width: 100%; height: 300px; background-color: #eaf1fd; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #1a73e8; font-weight: bold; margin-bottom: 24px; }
     .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
@@ -176,11 +202,17 @@
 
   <main class="main-content">
     
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>您的瀏覽器不支援或已停用 JavaScript。本平台即時收集台北市各區域的 PM2.5 數據。最新空氣品質狀態涵蓋：良好 (0-15.4)、普通 (15.5-35.4)、對敏感族群不健康 (35.5-54.4) 及危險等級。詳細即時數據、互動式地圖與圖表分析，請啟用 JavaScript 後觀看。</p>
+      </div>
+    </noscript>
+
     <div id="view-home" class="view-section active">
       <div class="hero-card">
         <h1>呼吸台北：群眾參與式移動空污感測與粉塵收集平台</h1>
         
-        <div class="hero-content">
+        <article class="hero-content">
           <div class="hero-image-placeholder">
             <span class="material-symbols-outlined" style="font-size: 48px; margin-right: 12px;">add_photo_alternate</span>
             此處預留給專案圖片 (記得加上 alt 屬性)
@@ -190,15 +222,18 @@
           <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與 (Crowdsourcing)</strong>，由台北地區居民在日常通勤時攜帶小型感測器，補齊巷弄間微氣候的動態空污地圖。</p>
           
           <h2>運作機制：如何收集 PM2.5 數據？</h2>
-          <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。志工的感測裝置會實時收集高精度的 <strong>PM2.5 濃度</strong>與 GPS 定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
+          <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。志工的感測裝置會實時收集高精度的 <mark>PM2.5 濃度</mark> 與 GPS 定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
           
+          <h2>感測器與資料準確度說明</h2>
+          <p>本專案採用的微型空污感測器（如：Plantower PMS5003 雷射粉塵感測模組），經過初步校正，能有效反映趨勢變化。所有數據透過 Google Sheets API 即時開源，供學術研究與環境評估交叉比對使用，確保資料的透明度與可信度。</p>
+
           <h2>平台提供哪些即時分析功能？</h2>
           <ul>
             <li><strong>即時地圖：</strong>視覺化呈現大台北市各區域的空氣品質熱區與 PM2.5 分佈。</li>
             <li><strong>數據後台：</strong>公開透明的原始感測紀錄，包含經緯度與時間戳記。</li>
             <li><strong>圖表分析：</strong>提供直觀的 PM2.5 濃度折線圖與空污等級比例分佈。</li>
           </ul>
-        </div>
+        </article>
       </div>
     </div>
 
@@ -270,7 +305,7 @@
     </div>
 
     <div id="view-settings" class="view-section">
-      <div class="settings-container">
+      <section class="settings-container">
         <h2 class="settings-title">系統設定與說明</h2>
 
         <div class="setting-card">
@@ -305,7 +340,7 @@
           <button class="contact-btn">聯絡我們 / 申請參與</button>
         </div>
 
-      </div>
+      </section>
     </div>
 
   </main>
