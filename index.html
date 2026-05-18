@@ -13,6 +13,22 @@
   <meta property="og:title" content="呼吸台北：移動空污感測平台" />
   <meta property="og:description" content="一起來補齊台北每一條巷弄的空氣品質地圖！查看即時 PM2.5 數據與趨勢分析。" />
   <meta property="og:type" content="website" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "呼吸台北：移動空污感測與粉塵收集平台",
+    "description": "透過群眾參與及自製移動式微型感測器，結合物聯網 (IoT) 技術，即時收集大台北地區 PM2.5 與空氣品質數據的開源平台。",
+    "applicationCategory": "EnvironmentApplication",
+    "operatingSystem": "Web",
+    "author": {
+      "@type": "Organization",
+      "name": "東吳大學資料科學系鄭江宇實驗室"
+    },
+    "keywords": "台北空氣品質, PM2.5, 移動空污感測, 智在家鄉, 物聯網感測"
+  }
+  </script>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
@@ -54,6 +70,7 @@
     .hero-content { text-align: left; }
     .hero-content h2 { font-size: 20px; color: #1a73e8; margin-top: 30px; margin-bottom: 12px; border-bottom: 2px solid #eaf1fd; padding-bottom: 8px; }
     .hero-content p { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; }
+    .hero-content ul { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; padding-left: 24px; } /* 新增：列表樣式 */
     .hero-image-placeholder { width: 100%; height: 300px; background-color: #eaf1fd; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #1a73e8; font-weight: bold; margin-bottom: 24px; }
     .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
@@ -168,14 +185,19 @@
             <span class="material-symbols-outlined" style="font-size: 48px; margin-right: 12px;">add_photo_alternate</span>
             此處預留給專案圖片 (記得加上 alt 屬性)
           </div>
-          <h2>專案緣起與目標</h2>
-          <p>這是我們團隊參與<strong>「智在家鄉」競賽</strong>所打造的環境監測雛形系統。我們觀察到傳統的空氣品質監測站通常為定點式，無法反映出巷弄間真實的空污狀況。因此，我們希望透過<strong>群眾參與 (Crowdsourcing)</strong> 的力量，讓居住在台北地區的居民，在日常通勤或散步時攜帶小型感測器，幫助我們補齊微型氣候的空污地圖。</p>
           
-          <h2>技術架構與數據收集</h2>
-          <p>本專案結合了<strong>物聯網 (IoT) 技術</strong>與<strong>微型感測器</strong>。志工攜帶的裝置會實時收集環境中的微物聯網數據，包含高精度的 <strong>PM2.5 濃度</strong>與 GPS 經緯度定位。這些環境監測數據會透過網路，即時回傳至 Google Sheets 雲端資料庫，並呈現在這個互動式網頁平台上。</p>
+          <h2>什麼是「呼吸台北」專案？</h2>
+          <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與 (Crowdsourcing)</strong>，由台北地區居民在日常通勤時攜帶小型感測器，補齊巷弄間微氣候的動態空污地圖。</p>
           
-          <h2>如何使用本平台？</h2>
-          <p>您可以透過左側導覽列切換功能：點擊<strong>「即時地圖」</strong>可觀看目前大台北市各區域的空氣品質熱區；進入<strong>「數據後台」</strong>則可檢視最原始的感測紀錄；若想了解整體趨勢，<strong>「圖表分析」</strong>提供了直觀的折線圖與比例分佈，讓生硬的環境數據也能清楚易懂。</p>
+          <h2>運作機制：如何收集 PM2.5 數據？</h2>
+          <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。志工的感測裝置會實時收集高精度的 <strong>PM2.5 濃度</strong>與 GPS 定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
+          
+          <h2>平台提供哪些即時分析功能？</h2>
+          <ul>
+            <li><strong>即時地圖：</strong>視覺化呈現大台北市各區域的空氣品質熱區與 PM2.5 分佈。</li>
+            <li><strong>數據後台：</strong>公開透明的原始感測紀錄，包含經緯度與時間戳記。</li>
+            <li><strong>圖表分析：</strong>提供直觀的 PM2.5 濃度折線圖與空污等級比例分佈。</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -215,6 +237,9 @@
       
       <div style="overflow-y: auto; height: calc(100vh - 100px);">
         <table>
+          <caption style="text-align: left; font-size: 13px; color: #666; margin-bottom: 8px;">
+            實時更新的 PM2.5 監測數據（包含時間戳記、濃度、空氣品質狀態與經緯度）
+          </caption>
           <thead><tr><th>時間戳記</th><th>PM2.5 (µg/m³)</th><th>狀態等級</th><th>緯度</th><th>經度</th><th>衛星數</th></tr></thead>
           <tbody id="data-table-body"></tbody>
         </table>
