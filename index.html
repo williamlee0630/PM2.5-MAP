@@ -49,7 +49,7 @@
     .hero-card { max-width: 800px; margin: 40px auto; }
     .hero-card h1 { color: #2c3e50; font-size: 28px; margin-bottom: 24px; }
     
-    /* ★ 新增：SEO 文章排版樣式 */
+    /* SEO 文章排版樣式 */
     .hero-content { text-align: left; }
     .hero-content h2 { font-size: 20px; color: #1a73e8; margin-top: 30px; margin-bottom: 12px; border-bottom: 2px solid #eaf1fd; padding-bottom: 8px; }
     .hero-content p { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; }
@@ -104,11 +104,17 @@
     .contact-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
     .contact-btn:hover { background: #1557b0; }
 
+    /* ★ 新增：圖表篩選器樣式 */
+    .chart-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e0e4e9; }
+    .chart-controls label { font-size: 14px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 4px;}
+    .chart-controls select { padding: 6px 12px; border-radius: 6px; border: 1px solid #c7c7c7; font-family: inherit; font-size: 14px; outline: none; cursor: pointer; }
+    .chart-controls select:focus { border-color: #1a73e8; }
+
     /* =========================================
        手機版專屬樣式 (螢幕寬度小於 768px 時觸發)
        ========================================= */
     @media (max-width: 768px) {
-      /* --- 1. 地圖圖例優化 (保留您之前的設定) --- */
+      /* --- 1. 地圖圖例優化 --- */
       .legend { right: 10px; bottom: 24px; padding: 8px 12px; font-size: 11px; line-height: 1.5; }
       .legend div:first-child { font-size: 12px !important; margin-bottom: 2px !important; }
       .legend-dot { width: 10px; height: 10px; margin-right: 5px; }
@@ -134,7 +140,6 @@
       }
 
       /* --- 3. 數據後台：表格區塊優化 (改為左右滑動) --- */
-      /* 針對包住表格的那個 div 設定 */
       #view-data > div:nth-of-type(2) {
         overflow-x: auto; /* 允許內容超出時產生橫向卷軸 */
         -webkit-overflow-scrolling: touch; /* 讓 iOS 手機滑動起來更順暢 */
@@ -145,7 +150,7 @@
       }
       th, td {
         padding: 12px 15px;
-        white-space: nowrap; /* ★ 核心關鍵：嚴格禁止文字自動換行或變成垂直 ★ */
+        white-space: nowrap; /* 核心關鍵：嚴格禁止文字自動換行或變成垂直 */
       }
       .status-badge {
         display: inline-block; /* 確保標籤的圓角和形狀正常 */
@@ -248,12 +253,21 @@
     <div id="view-charts" class="view-section">
       <div class="data-header" style="border-bottom: none; padding-bottom: 10px;">
         <div class="data-title-group">
-          <h2>即時數據分析圖表</h2>
+          <h2>即時數據 analysis 圖表</h2>
           <span style="color: #444746; font-size: 14px;">資料會與地圖同步每 10 秒自動更新</span>
         </div>
       </div>
       
       <div class="charts-wrapper">
+        <div class="chart-controls">
+          <label for="pm25TrendFilter"><span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span> 趨勢圖篩選：</label>
+          <select id="pm25TrendFilter" onchange="renderCharts()">
+            <option value="all">顯示全部數據</option>
+            <option value="warning">僅顯示空污熱區 (大於 35.5 µg/m³)</option>
+            <option value="danger">僅顯示危險等級 (大於 54.5 µg/m³)</option>
+          </select>
+        </div>
+
         <div class="chart-card"><canvas id="pm25TrendChart"></canvas></div>
         <div class="chart-card"><canvas id="statusPieChart"></canvas></div>
       </div>
