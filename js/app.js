@@ -2,19 +2,19 @@
 const sheetId = '1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ';
 const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
+// ★ 註冊 DataLabels 套件 (為了圓餅圖顯示百分比) ★
+Chart.register(ChartDataLabels);
+
 let trendChartInstance = null;
 let pieChartInstance = null;
-let globalData = []; // ★ 新增：用來暫存抓到的資料，方便篩選器直接使用
+let globalData = [];
 
-// 畫圖表函式 (現在可以直接呼叫它來刷新圖表)
 function renderCharts() {
   if (globalData.length === 0) return;
 
-  // --- 1. 取得使用者的篩選條件 ---
   const filterElement = document.getElementById('pm25TrendFilter');
   const filterValue = filterElement ? filterElement.value : 'all';
   
-  // 根據篩選條件過濾折線圖的資料
   let trendData = globalData;
   if (filterValue === 'warning') {
     trendData = globalData.filter(d => d.pm25 >= 35.5);
@@ -22,11 +22,9 @@ function renderCharts() {
     trendData = globalData.filter(d => d.pm25 >= 54.5);
   }
 
-  // 準備折線圖資料
   const labels = trendData.map(d => d.timestamp ? d.timestamp.split(' ')[1] || d.timestamp : '');
   const pm25Values = trendData.map(d => d.pm25);
 
-  // 準備圓餅圖資料 (圓餅圖不受篩選影響，永遠顯示整體比例)
   const statusCounts = { '良好': 0, '普通': 0, '對敏感族群不健康': 0, '對所有族群不健康': 0, '非常不健康': 0, '危害': 0 };
   const statusColors = ['#00e400', '#ffff00', '#ff7e00', '#ff0000', '#8f3f97', '#7e0023'];
   globalData.forEach(d => {
@@ -37,10 +35,8 @@ function renderCharts() {
   if (trendChartInstance) trendChartInstance.destroy();
   if (pieChartInstance) pieChartInstance.destroy();
 
-  // ★ 判斷是否為手機螢幕，用來調整圖表顯示細節
   const isMobile = window.innerWidth <= 768;
 
-  // --- 2. 畫折線圖 (加入手機版優化參數) ---
   const ctxTrend = document.getElementById('pm25TrendChart');
   if (ctxTrend) {
     trendChartInstance = new Chart(ctxTrend.getContext('2d'), {
@@ -52,8 +48,8 @@ function renderCharts() {
           data: pm25Values, 
           borderColor: '#3498db', 
           backgroundColor: 'rgba(52, 152, 219, 0.2)', 
-          borderWidth: isMobile ? 1.5 : 2, // 手機版線條稍微變細
-          pointRadius: isMobile ? 2 : 4,   // ★ 優化：手機版的資料點變小，避免擠成一團
+          borderWidth: isMobile ? 1.5 : 2, 
+          pointRadius: isMobile ? 2 : 4,   
           tension: 0.3, 
           fill: true 
         }]
@@ -62,14 +58,15 @@ function renderCharts() {
         responsive: true, 
         maintainAspectRatio: false, 
         plugins: { 
-          title: { display: true, text: 'PM2.5 濃度時間趨勢', font: { size: 16 } } 
+          title: { display: true, text: 'PM2.5 濃度時間趨勢', font: { size: 16 } },
+          // 隱藏折線圖的 datalabels，避免數字擠在一起
+          datalabels: { display: false } 
         },
         scales: {
           x: {
             ticks: {
-              // ★ 核心優化：限制 X 軸標籤數量，手機最多顯示 6 個時間，電腦顯示 15 個
               maxTicksLimit: isMobile ? 6 : 15,
-              maxRotation: 45, // 允許標籤稍微傾斜
+              maxRotation: 45, 
               minRotation: 0
             }
           }
@@ -78,7 +75,6 @@ function renderCharts() {
     });
   }
 
-  // --- 3. 畫圓餅圖 ---
   const ctxPie = document.getElementById('statusPieChart');
   if (ctxPie) {
     pieChartInstance = new Chart(ctxPie.getContext('2d'), {
@@ -92,14 +88,29 @@ function renderCharts() {
         maintainAspectRatio: false, 
         plugins: { 
           title: { display: true, text: '總體空氣品質狀態分佈', font: { size: 16 } }, 
-          legend: { position: isMobile ? 'bottom' : 'right' } // ★ 優化：手機版的圓餅圖圖例改放下方，才不會壓縮圓形空間
+          legend: { position: isMobile ? 'bottom' : 'right' },
+          // ★ 新增：在色塊上顯示百分比
+          datalabels: {
+            color: '#ffffff', // 文字顏色設為白色
+            font: { weight: 'bold', size: 14 },
+            textStrokeColor: 'rgba(0,0,0,0.5)', // 加上黑色邊框讓文字在亮色背景也清楚
+            textStrokeWidth: 3,
+            formatter: (value, ctx) => {
+              let sum = 0;
+              let dataArr = ctx.chart.data.datasets[0].data;
+              dataArr.map(data => { sum += data; });
+              
+              if (value === 0) return null; // 如果是 0 就不顯示
+              let percentage = (value * 100 / sum).toFixed(1) + "%";
+              return percentage;
+            }
+          }
         } 
       }
     });
   }
 }
 
-// 抓取資料主函式
 function fetchData(isAuto = false) {
   if (!isAuto) document.getElementById('data-status').innerText = '資料讀取中...';
 
@@ -108,7 +119,6 @@ function fetchData(isAuto = false) {
     header: true,
     dynamicTyping: true,
     complete: function(results) {
-      // 過濾並存入全域變數
       globalData = results.data.filter(row => row.latitude && row.longitude && row.pm25 !== undefined);
       
       document.getElementById('data-status').innerText = `共讀取 ${globalData.length} 筆資料 (最後更新: ${new Date().toLocaleTimeString()})`;
@@ -117,8 +127,6 @@ function fetchData(isAuto = false) {
       tableBody.innerHTML = '';
       
       clearMapMarkers();
-      
-      // 呼叫畫圖表函式
       renderCharts();
 
       const reversedData = [...globalData].reverse();

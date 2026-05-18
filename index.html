@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link rel="icon" href="favicon.png" type="image/png">
   
   <style>
@@ -104,7 +105,7 @@
     .contact-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
     .contact-btn:hover { background: #1557b0; }
 
-    /* ★ 新增：圖表篩選器樣式 */
+    /* 圖表篩選器樣式 */
     .chart-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e0e4e9; }
     .chart-controls label { font-size: 14px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 4px;}
     .chart-controls select { padding: 6px 12px; border-radius: 6px; border: 1px solid #c7c7c7; font-family: inherit; font-size: 14px; outline: none; cursor: pointer; }
@@ -114,50 +115,20 @@
        手機版專屬樣式 (螢幕寬度小於 768px 時觸發)
        ========================================= */
     @media (max-width: 768px) {
-      /* --- 1. 地圖圖例優化 --- */
       .legend { right: 10px; bottom: 24px; padding: 8px 12px; font-size: 11px; line-height: 1.5; }
       .legend div:first-child { font-size: 12px !important; margin-bottom: 2px !important; }
       .legend-dot { width: 10px; height: 10px; margin-right: 5px; }
       .main-content { border-radius: 16px 16px 0 0; margin-top: 8px; margin-right: 8px; }
 
-      /* --- 2. 數據後台：按鈕區塊優化 --- */
-      .data-header {
-        flex-direction: column; /* 讓標題和按鈕變成上下排列 */
-        align-items: flex-start;
-        padding: 20px 15px;
-        gap: 16px;
-      }
-      .btn-group {
-        width: 100%; /* 按鈕群組佔滿寬度 */
-        display: flex;
-        gap: 10px;
-      }
-      .action-btn {
-        flex: 1; /* 讓兩個按鈕平分寬度 */
-        justify-content: center; /* 讓按鈕內的文字與圖示置中 */
-        padding: 10px 4px;
-        font-size: 13px; /* 字體稍微調小適應螢幕 */
-      }
+      .data-header { flex-direction: column; align-items: flex-start; padding: 20px 15px; gap: 16px; }
+      .btn-group { width: 100%; display: flex; gap: 10px; }
+      .action-btn { flex: 1; justify-content: center; padding: 10px 4px; font-size: 13px; }
 
-      /* --- 3. 數據後台：表格區塊優化 (改為左右滑動) --- */
-      #view-data > div:nth-of-type(2) {
-        overflow-x: auto; /* 允許內容超出時產生橫向卷軸 */
-        -webkit-overflow-scrolling: touch; /* 讓 iOS 手機滑動起來更順暢 */
-      }
-      table {
-        min-width: 650px; /* 強制表格最少要有 650px 寬，這樣就不會被螢幕擠壓 */
-        font-size: 14px;
-      }
-      th, td {
-        padding: 12px 15px;
-        white-space: nowrap; /* 核心關鍵：嚴格禁止文字自動換行或變成垂直 */
-      }
-      .status-badge {
-        display: inline-block; /* 確保標籤的圓角和形狀正常 */
-        white-space: nowrap;
-      }
+      #view-data > div:nth-of-type(2) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 650px; font-size: 14px; }
+      th, td { padding: 12px 15px; white-space: nowrap; }
+      .status-badge { display: inline-block; white-space: nowrap; }
       
-      /* --- 4. 圖表分析頁面與設定頁面優化 --- */
       .charts-wrapper { padding: 0 15px 20px 15px; }
       .settings-container { padding: 20px 15px; }
       .setting-row { flex-direction: column; gap: 12px; }
@@ -253,7 +224,7 @@
     <div id="view-charts" class="view-section">
       <div class="data-header" style="border-bottom: none; padding-bottom: 10px;">
         <div class="data-title-group">
-          <h2>即時數據 analysis 圖表</h2>
+          <h2>即時數據分析圖表</h2>
           <span style="color: #444746; font-size: 14px;">資料會與地圖同步每 10 秒自動更新</span>
         </div>
       </div>
