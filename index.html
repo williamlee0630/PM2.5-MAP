@@ -94,8 +94,20 @@
 
     /* GEO 優化：時間鮮度動態跑馬燈樣式 */
     .freshness-marquee { background: #1a73e8; color: #fff; overflow: hidden; padding: 10px 0; font-size: 14px; font-weight: bold; flex-shrink: 0; border-radius: 24px 24px 0 0; }
-    .marquee-content { display: inline-block; white-space: nowrap; padding-left: 100%; animation: marqueeRun 25s linear infinite; }
-    @keyframes marqueeRun { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+    
+    /* 這裡做了優化：減少出發延遲，並將動畫時間縮短到 18 秒讓捲動更流暢 */
+    .marquee-content { 
+      display: inline-block; 
+      white-space: nowrap; 
+      padding-left: 25%; /* 從原本的 100% 改為 25%，大幅縮短文字進場前的黑屏等待時間 */
+      animation: marqueeRun 18s linear infinite; /* 從 25s 改為 18s，速度稍微加快，視覺更流暢 */
+    }
+    
+    /* 動畫軌跡優化：讓文字完全走完才重頭開始，避免字尾被切掉 */
+    @keyframes marqueeRun { 
+      0% { transform: translateX(0); } 
+      100% { transform: translateX(-120%); } /* 改為 -120%，確保長文字也能完美走完 */
+    }
     .freshness-marquee:hover .marquee-content { animation-play-state: paused; }
 
     /* 首頁與地圖 */
