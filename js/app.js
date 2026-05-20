@@ -2,12 +2,61 @@
 const sheetId = '1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ';
 const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
-// ★ 註冊 DataLabels 套件 (為了圓餅圖顯示百分比) ★
+// 註冊 DataLabels 套件 (為了圓餅圖顯示百分比)
 Chart.register(ChartDataLabels);
 
 let trendChartInstance = null;
 let pieChartInstance = null;
 let globalData = [];
+
+// === 新增：動態文字與 AI 摘要運算邏輯 ===
+function updateDynamicText(data) {
+  if (!data || data.length === 0) return;
+
+  // 取得最新一筆資料的時間
+  const latestData = data[data.length - 1];
+  const latestTime = latestData.timestamp || new Date().toLocaleString('zh-TW');
+
+  // 計算平均與最大 PM2.5 數值
+  let sum = 0;
+  let maxPm25 = -1;
+
+  data.forEach(d => {
+    if(d.pm25 !== undefined) {
+      sum += d.pm25;
+      if(d.pm25 > maxPm25) maxPm25 = d.pm25;
+    }
+  });
+
+  const avgPm25 = (sum / data.length).toFixed(1);
+
+  // 根據數據動態決定文案策略
+  let insight = '';
+  let aiSummary = '';
+
+  if (maxPm25 >= 54.5) {
+     insight = `⚠️ 警告：系統偵測到部分地區達 ${maxPm25} µg/m³ (不健康等級)，請敏感族群留意即時地圖！`;
+     aiSummary = `根據「呼吸台北」微型感測網最新數據（更新時間：${latestTime}）顯示，目前系統偵測到局部區域 PM2.5 濃度高達 <strong>${maxPm25} µg/m³ (對所有族群不健康)</strong>。強烈提醒機車族群與外出民眾可搭配本平台的「即時地圖」功能，避開潛在的空污熱區。`;
+  } else if (maxPm25 >= 35.5) {
+     insight = `⚡ 提醒：部分交通熱點 PM2.5 濃度升高，最高測得 ${maxPm25} µg/m³，建議行經周邊配戴口罩。`;
+     aiSummary = `根據「呼吸台北」微型感測網最新數據（更新時間：${latestTime}）顯示，大台北地區多數巷弄空氣品質尚可，但部分交通熱點偶有短暫的 PM2.5 濃度升高（最高測得 <strong>${maxPm25} µg/m³</strong>）。建議機車族群多加留意，並可利用地圖功能查詢最新狀態。`;
+  } else {
+     insight = `🌿 系統觀測中：多數觀測點維持在普通至良好等級 (最高僅 ${maxPm25} µg/m³)，空氣品質穩定。`;
+     aiSummary = `根據「呼吸台北」微型感測網最新數據（更新時間：${latestTime}）顯示，目前大台北地區各觀測點的 PM2.5 數值皆維持在普通至良好等級以內，平均濃度約為 <strong>${avgPm25} µg/m³</strong>，整體空氣品質十分穩定，適合戶外活動。`;
+  }
+
+  // 將動態生成的文字塞入 HTML 中
+  const marqueeEl = document.getElementById('dynamic-marquee');
+  if (marqueeEl) {
+    marqueeEl.innerHTML = `🟢 系統狀態：感測網連線正常 ｜ 最新資料同步：${latestTime} ｜ AI 洞察：${insight}`;
+  }
+
+  const summaryEl = document.getElementById('ai-summary-text');
+  if (summaryEl) {
+    summaryEl.innerHTML = aiSummary;
+  }
+}
+// ==========================================
 
 function renderCharts() {
   if (globalData.length === 0) return;
@@ -59,7 +108,6 @@ function renderCharts() {
         maintainAspectRatio: false, 
         plugins: { 
           title: { display: true, text: 'PM2.5 濃度時間趨勢', font: { size: 16 } },
-          // 隱藏折線圖的 datalabels，避免數字擠在一起
           datalabels: { display: false } 
         },
         scales: {
@@ -89,18 +137,16 @@ function renderCharts() {
         plugins: { 
           title: { display: true, text: '總體空氣品質狀態分佈', font: { size: 16 } }, 
           legend: { position: isMobile ? 'bottom' : 'right' },
-          // ★ 新增：在色塊上顯示百分比
           datalabels: {
-            color: '#ffffff', // 文字顏色設為白色
+            color: '#ffffff',
             font: { weight: 'bold', size: 14 },
-            textStrokeColor: 'rgba(0,0,0,0.5)', // 加上黑色邊框讓文字在亮色背景也清楚
+            textStrokeColor: 'rgba(0,0,0,0.5)',
             textStrokeWidth: 3,
             formatter: (value, ctx) => {
               let sum = 0;
               let dataArr = ctx.chart.data.datasets[0].data;
               dataArr.map(data => { sum += data; });
-              
-              if (value === 0) return null; // 如果是 0 就不顯示
+              if (value === 0) return null;
               let percentage = (value * 100 / sum).toFixed(1) + "%";
               return percentage;
             }
@@ -111,6 +157,7 @@ function renderCharts() {
   }
 }
 
+// 抓取資料主函式 (PapaParse)
 function fetchData(isAuto = false) {
   if (!isAuto) document.getElementById('data-status').innerText = '資料讀取中...';
 
@@ -128,6 +175,9 @@ function fetchData(isAuto = false) {
       
       clearMapMarkers();
       renderCharts();
+      
+      // ★ 在資料讀取完畢後，執行我們的動態文字更新邏輯 ★
+      updateDynamicText(globalData);
 
       const reversedData = [...globalData].reverse();
       reversedData.forEach(function(point, index) {
