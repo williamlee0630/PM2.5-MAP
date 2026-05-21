@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>呼吸台北：群眾參與式移動空污感測與粉塵收集平台 | 智在家鄉</title>
+  <title>空污共犯：讓每一次移動科技成為守護城市呼吸的力量 | 智在家鄉</title>
   
-  <meta name="description" content="參與智在家鄉競賽的「呼吸台北」專案，透過群眾參與及自製移動式微型感測器，即時收集大台北地區 PM2.5 與空氣品質數據，打造專屬台北的空污地圖。" />
-  <meta name="keywords" content="智在家鄉, 空氣品質, PM2.5, 微型感測器, 空污地圖, 環境監測, 呼吸台北" />
+  <meta name="description" content="參與智在家鄉競賽的「空污共犯」專案，透過群眾參與及自製移動式微型感測器，即時收集大台北地區 PM2.5 與空氣品質數據，打造專屬台北的空污地圖。" />
+  <meta name="keywords" content="智在家鄉, 空氣品質, PM2.5, 微型感測器, 空污地圖, 環境監測, 空污共犯" />
   <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
 
-  <meta property="og:title" content="呼吸台北：移動空污感測平台" />
+  <meta property="og:title" content="空污共犯：讓每一次移動科技成為守護城市呼吸的力量" />
   <meta property="og:description" content="一起來補齊台北每一條巷弄的空氣品質地圖！查看即時 PM2.5 數據與趨勢分析。" />
   <meta property="og:type" content="website" />
 
@@ -18,7 +18,7 @@
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "呼吸台北：移動空污感測與粉塵收集平台",
+    "name": "空污共犯：讓每一次移動科技成為守護城市呼吸的力量",
     "description": "透過群眾參與及自製移動式微型感測器，結合物聯網 (IoT) 技術，即時收集大台北地區 PM2.5 與空氣品質數據的開源平台。",
     "applicationCategory": "EnvironmentApplication",
     "operatingSystem": "Web",
@@ -50,17 +50,17 @@
     "@type": "FAQPage",
     "mainEntity": [{
       "@type": "Question",
-      "name": "什麼是呼吸台北專案？",
+      "name": "什麼是「空污共犯」專案？",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "呼吸台北是一個群眾參與式的移動空污感測平台，由志工攜帶微型感測器，結合物聯網技術，即時收集大台北地區街道級別的 PM2.5 數據。"
+        "text": "「空污共犯」是一個群眾參與式的移動空污感測平台，由志工攜帶微型感測器，結合物聯網技術，將每一次的移動轉化為守護城市的數據，即時收集大台北地區街道級別的 PM2.5 數值。"
       }
     }, {
       "@type": "Question",
       "name": "如何查詢台北市即時的 PM2.5 與空氣品質？",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "可透過呼吸台北平台的即時地圖與數據後台，觀看大台北市各區域的空氣品質熱區、PM2.5 濃度折線圖與原始感測數據。"
+        "text": "可透過「空污共犯」平台的即時地圖與數據後台，觀看大台北市各區域的空氣品質熱區、PM2.5 濃度折線圖與原始感測數據。"
       }
     }]
   }
@@ -115,7 +115,7 @@
     /* 首頁與地圖 */
     #view-home { padding: 40px; text-align: center; }
     .hero-card { max-width: 800px; margin: 20px auto 40px auto; }
-    .hero-card h1 { color: #2c3e50; font-size: 28px; margin-bottom: 24px; }
+    .hero-card h1 { color: #2c3e50; font-size: 28px; margin-bottom: 24px; line-height: 1.4;}
     
     /* SEO 文章排版樣式 */
     .hero-content { text-align: left; }
@@ -134,7 +134,8 @@
     .feature-card p { margin: 0; font-size: 14px; color: #667085; line-height: 1.6; }
 
     mark { background-color: #fff2cc; color: #1f1f1f; padding: 0 4px; border-radius: 4px; font-weight: bold; }
-    .hero-image-placeholder { width: 100%; height: 300px; background-color: #eaf1fd; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #1a73e8; font-weight: bold; margin-bottom: 24px; }
+    
+    /* 圖片樣式（移除 placeholder，保留正式圖片樣式） */
     .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
     #map { width: 100%; height: 100%; position: relative; }
@@ -255,13 +256,11 @@
 
     <div id="view-home" class="view-section active">
       <div class="hero-card">
-        <h1>呼吸台北：群眾參與式移動空污感測與粉塵收集平台</h1>
+        <h1>空污共犯：讓每一次移動科技成為守護城市呼吸的力量</h1>
         
         <article class="hero-content">
-          <div class="hero-image-placeholder">
-            <span class="material-symbols-outlined" style="font-size: 48px; margin-right: 12px;">add_photo_alternate</span>
-            此處預留給專案圖片 (記得加上 alt 屬性)
-          </div>
+          
+          <img src="logo.jpg" alt="空污共犯：移動式微型感測器收集台北 PM2.5 數據" class="hero-image">
           
           <div class="ai-summary-box">
             <strong>📊 空氣品質觀測總結 (AI 摘要)</strong>
@@ -270,8 +269,8 @@
             </p>
           </div>
 
-          <h2>什麼是「呼吸台北」專案？</h2>
-          <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與 (Crowdsourcing)</strong>，由台北地區居民在日常通勤時攜帶小型感測器，補齊巷弄間微氣候的動態空污地圖。</p>
+          <h2>什麼是「空污共犯」專案？</h2>
+          <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與 (Crowdsourcing)</strong>，由台北地區居民在日常通勤時攜帶小型感測器，將每一次的移動軌跡轉化為守護城市的數據，補齊巷弄間微氣候的動態空污地圖。</p>
           
           <h2>運作機制：如何收集 PM2.5 數據？</h2>
           <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。志工的感測裝置會實時收集高精度的 <mark>PM2.5 濃度</mark> 與 GPS 定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
@@ -288,7 +287,7 @@
             </p>
           </blockquote>
           <p>
-            為了發揮數據的最大價值，「呼吸台北」的微型氣候觀測資料，未來將積極評估串接至 
+            為了發揮數據的最大價值，「空污共犯」的微型氣候觀測資料，未來將積極評估串接至 
             <a href="https://data.gov.tw/" target="_blank" rel="noopener noreferrer" style="color: #0f9d58; font-weight: bold; text-decoration: none;">政府資料開放平臺 (data.gov.tw)</a> 
             或與民間最大的 <strong>LASS (開源公益環境感測網路)</strong> 進行交叉分析，共同完善台北市的 3D 空污地圖。
           </p>
@@ -406,7 +405,7 @@
         <div class="contact-card">
           <div class="contact-card-title">聯絡我們</div>
           <div class="contact-text">
-            「呼吸台北」平台的力量來自於每一位參與的居民。我們正在招募願意在日常通勤、散步時攜帶小型感測器的志工，幫助我們補齊台北每一條巷弄的空氣品質地圖。
+            「空污共犯」平台的力量來自於每一位參與的居民。我們正在招募願意在日常通勤、散步時攜帶小型感測器的志工，幫助我們補齊台北每一條巷弄的空氣品質地圖。
           </div>
           <ul class="contact-list">
             <li><strong>申請參與：</strong>若您居住或經常出沒在台北區並願意參與，歡迎向我們洽詢。</li>
