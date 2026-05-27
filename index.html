@@ -6,7 +6,7 @@
   
   <title>空污共犯：讓每一次移動科技成為守護城市呼吸的力量 | 智在家鄉</title>
   
-  <meta name="description" content="參與智在家鄉競賽的「空污共犯」專案，由車輛裝載微型感測器行駛於大台北地區，即時收集 PM2.5 與空氣品質數據，打造專屬台北的空污地圖。" />
+  <meta name="description" content="參與聯發科技「智在家鄉」數位社會創新競賽的「空污共犯」專案，透過車輛裝載移動式微型感測器深入大台北地區街道巷弄，即時收集高精度 PM2.5 與空氣品質數據，補齊官方定點監測網難以覆蓋的微氣候缺口，打造開源的 3D 動態空污防護地圖，讓每一次移動科技都成為守護城市呼吸的力量。" />
   <meta name="keywords" content="智在家鄉, 空氣品質, PM2.5, 微型感測器, 空污地圖, 環境監測, 空污共犯" />
   <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
 
@@ -76,9 +76,17 @@
       "@type": "Organization",
       "name": "東吳大學資料科學系鄭江宇實驗室"
     },
-    "keywords": ["PM2.5", "Air Quality", "Taipei", "IoT", "Crowdsourcing"],
+    "keywords": ["PM2.5", "Air Quality", "Taipei", "IoT", "Crowdsourcing", "空污共犯"],
     "license": "https://creativecommons.org/licenses/by/4.0/",
-    "isAccessibleForFree": true
+    "isAccessibleForFree": true,
+    "spatialCoverage": {
+      "@type": "Place",
+      "name": "Taipei City, Taiwan",
+      "geo": {
+        "@type": "GeoShape",
+        "box": "24.960, 121.450 25.210, 121.660"
+      }
+    }
   }
   </script>
   
@@ -104,6 +112,8 @@
     .menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin-bottom: 24px; transition: background 0.2s; }
     .menu-toggle:hover { background-color: #e0e4e9; }
     .sidebar-section-title { font-size: 14px; font-weight: bold; color: #444746; padding: 12px 16px; margin-top: 10px; }
+    
+    /* 排版修正：確保選單不論有沒有換行，icon 與文字皆能完美對齊不崩塌 */
     .menu-item { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 50px; cursor: pointer; margin-bottom: 4px; font-size: 15px; transition: background 0.2s, color 0.2s; white-space: nowrap; }
     .menu-item:hover { background-color: #e0e4e9; }
     .menu-item.active { background-color: #d3e3fd; color: #041e49; font-weight: bold; }
@@ -116,12 +126,12 @@
     .view-section { display: none; flex-grow: 1; overflow-y: auto; }
     .view-section.active { display: block; }
     
-    /* 針對 #view-news 與 #view-home 等文字較多的頁面加入 padding */
+    /* 修正Padding配置 */
     #view-home, #view-news { padding: 40px; }
     #view-map { padding: 0; }
     #view-data, #view-charts { padding: 0; }
 
-    /* 跑馬燈優化（加上可點擊的互動提示） */
+    /* 跑馬燈優化 */
     .freshness-marquee { background: #1a73e8; color: #fff; overflow: hidden; padding: 10px 0; font-size: 14px; font-weight: bold; flex-shrink: 0; border-radius: 24px 24px 0 0; cursor: pointer; transition: background 0.3s; }
     .freshness-marquee:hover { background: #1557b0; }
     .marquee-content { display: inline-block; white-space: nowrap; padding-left: 10%; animation: marqueeRun 18s linear infinite; }
@@ -148,9 +158,7 @@
     mark { background-color: #fff2cc; color: #1f1f1f; padding: 0 4px; border-radius: 4px; font-weight: bold; }
     .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
-    /* =====================================
-       「環境快訊 (News)」頁面樣式
-       ===================================== */
+    /* 「環境快訊 (News)」頁面樣式 */
     .news-container { max-width: 900px; margin: 0 auto; text-align: left; }
     .news-header-title { font-size: 26px; color: #1f1f1f; font-weight: bold; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #eaf1fd;}
     
@@ -162,7 +170,6 @@
     .news-list { display: flex; flex-direction: column; gap: 20px; }
     .news-item { background: #fff; border: 1px solid #edf0ec; border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); display: flex; flex-direction: column; }
     .news-item-source { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #667085; margin-bottom: 8px; font-weight: bold;}
-    .news-item-source img { width: 16px; height: 16px; border-radius: 50%; }
     .news-item a.news-title { color: #1a73e8; font-size: 20px; font-weight: bold; text-decoration: none; margin-bottom: 12px; line-height: 1.4; transition: color 0.2s;}
     .news-item a.news-title:hover { color: #1557b0; text-decoration: underline; }
     .news-item p.news-desc { margin: 0; color: #444746; font-size: 15px; line-height: 1.7; }
@@ -211,11 +218,6 @@
     .contact-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
     .contact-btn:hover { background: #1557b0; }
 
-    .chart-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e0e4e9; }
-    .chart-controls label { font-size: 14px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 4px;}
-    .chart-controls select { padding: 6px 12px; border-radius: 6px; border: 1px solid #c7c7c7; font-family: inherit; font-size: 14px; outline: none; cursor: pointer; }
-    .chart-controls select:focus { border-color: #1a73e8; }
-
     @media (max-width: 768px) {
       .legend { right: 10px; bottom: 24px; padding: 8px 12px; font-size: 11px; line-height: 1.5; }
       .legend div:first-child { font-size: 12px !important; margin-bottom: 2px !important; }
@@ -243,11 +245,7 @@
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
 
     <div class="menu-item active" onclick="switchTab('home', this)"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></div>
-    
-    <div class="menu-item" id="nav-news" onclick="switchTab('news', this)">
-      <span class="material-symbols-outlined">campaign</span>
-      <span class="menu-text">環境快訊與氣象</span>
-    </div>
+    <div class="menu-item" id="nav-news" onclick="switchTab('news', this)"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></div>
     
     <div class="sidebar-section-title">數據與圖表</div>
     
@@ -504,4 +502,3 @@
 
 </body>
 </html>
-</body></html>
