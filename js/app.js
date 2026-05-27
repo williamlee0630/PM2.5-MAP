@@ -9,15 +9,13 @@ let trendChartInstance = null;
 let pieChartInstance = null;
 let globalData = [];
 
-// === 新增：動態文字與 AI 摘要運算邏輯 ===
-function updateDynamicText(data) {
+// === 升級版：動態文字、AI 摘要與即時天氣運算邏輯 ===
+async function updateDynamicText(data) {
   if (!data || data.length === 0) return;
 
-  // 取得最新一筆資料的時間
+  // 1. 計算 PM2.5 數據
   const latestData = data[data.length - 1];
   const latestTime = latestData.timestamp || new Date().toLocaleString('zh-TW');
-
-  // 計算平均與最大 PM2.5 數值
   let sum = 0;
   let maxPm25 = -1;
 
@@ -27,13 +25,11 @@ function updateDynamicText(data) {
       if(d.pm25 > maxPm25) maxPm25 = d.pm25;
     }
   });
-
   const avgPm25 = (sum / data.length).toFixed(1);
 
-  // 根據數據動態決定文案策略
+  // 2. 更新跑馬燈與首頁 AI 摘要
   let insight = '';
   let aiSummary = '';
-
   if (maxPm25 >= 54.5) {
      insight = `⚠️ 警告：系統偵測到部分地區達 ${maxPm25} µg/m³ (不健康等級)，請敏感族群留意即時地圖！`;
      aiSummary = `根據「空污共犯」微型感測網最新數據（更新時間：${latestTime}）顯示，目前系統偵測到局部區域 PM2.5 濃度高達 <strong>${maxPm25} µg/m³ (對所有族群不健康)</strong>。強烈提醒機車族群與外出民眾可搭配本平台的「即時地圖」功能，避開潛在的空污熱區。`;
@@ -45,15 +41,50 @@ function updateDynamicText(data) {
      aiSummary = `根據「空污共犯」微型感測網最新數據（更新時間：${latestTime}）顯示，目前大台北地區各觀測點的 PM2.5 數值皆維持在普通至良好等級以內，平均濃度約為 <strong>${avgPm25} µg/m³</strong>，整體空氣品質十分穩定，適合戶外活動。`;
   }
 
-  // 將動態生成的文字塞入 HTML 中
   const marqueeEl = document.getElementById('dynamic-marquee');
-  if (marqueeEl) {
-    marqueeEl.innerHTML = `🟢 系統狀態：感測網連線正常 ｜ 最新資料同步：${latestTime} ｜ AI 洞察：${insight}`;
-  }
-
+  if (marqueeEl) marqueeEl.innerHTML = `🟢 系統狀態：感測網連線正常 ｜ 最新資料同步：${latestTime} ｜ AI 洞察：${insight}`;
+  
   const summaryEl = document.getElementById('ai-summary-text');
-  if (summaryEl) {
-    summaryEl.innerHTML = aiSummary;
+  if (summaryEl) summaryEl.innerHTML = aiSummary;
+
+  // 3. 呼叫外部 API 抓取即時天氣，並與空污數據結合
+  try {
+    // 使用免金鑰的 Open-Meteo API 抓取台北市即時天氣
+    const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&current=temperature_2m,wind_speed_10m,weather_code&timezone=Asia%2FTaipei');
+    const weatherData = await weatherRes.json();
+    const current = weatherData.current;
+    
+    const temp = current.temperature_2m;
+    const wind = current.wind_speed_10m;
+    const weatherCode = current.weather_code;
+    const updateTime = new Date().toLocaleString('zh-TW');
+
+    // 簡易 WMO 天氣代碼轉換
+    let weatherDesc = '晴到多雲';
+    if (weatherCode >= 51 && weatherCode <= 69) weatherDesc = '局部短暫雨';
+    else if (weatherCode >= 71) weatherDesc = '大雨或雷雨';
+    else if (weatherCode >= 41 && weatherCode <= 48) weatherDesc = '霧或霾';
+
+    // 更新 HTML 畫面
+    const timeEl = document.querySelector('.weather-suggestion-box .update-time');
+    const descEl = document.getElementById('weather-realtime-desc');
+    const adviceEl = document.getElementById('weather-realtime-advice');
+
+    if (timeEl) timeEl.innerText = `即時資料連線時間：${updateTime}`;
+    if (descEl) descEl.innerHTML = `今日台北地區即時天氣：<strong>${weatherDesc}</strong>，氣溫約 <strong>${temp}°C</strong>，風速 <strong>${wind} km/h</strong>。<br>根據「空污共犯」最新數據，目前大台北平均 PM2.5 濃度約為 <strong>${avgPm25} µg/m³</strong>。`;
+
+    // 結合氣象與空污的智慧防護建議
+    if (adviceEl) {
+      if (avgPm25 > 35.4) {
+        adviceEl.innerHTML = `<strong>⚠️ 防護建議：</strong> 目前空污濃度偏高，且氣溫為 ${temp}°C。強烈建議機車族與戶外活動者配戴口罩，並減少劇烈運動。`;
+      } else if (weatherCode > 50) {
+         adviceEl.innerHTML = `<strong>☔ 防護建議：</strong> 空氣品質尚可，但目前有降雨機率，外出請記得攜帶雨具，並留意天雨路滑。`;
+      } else {
+         adviceEl.innerHTML = `<strong>🌿 防護建議：</strong> 氣候舒適且空氣品質穩定，非常適合安排戶外活動、散步或短程城市探索！`;
+      }
+    }
+  } catch (error) {
+    console.error('天氣 API 讀取失敗', error);
   }
 }
 // ==========================================
