@@ -9,11 +9,10 @@ let trendChartInstance = null;
 let pieChartInstance = null;
 let globalData = [];
 
-// === 升級版：動態文字、AI 摘要與即時天氣運算邏輯 ===
+// === 動態文字、AI 摘要與即時天氣運算邏輯 ===
 async function updateDynamicText(data) {
   if (!data || data.length === 0) return;
 
-  // 1. 計算 PM2.5 數據
   const latestData = data[data.length - 1];
   const latestTime = latestData.timestamp || new Date().toLocaleString('zh-TW');
   let sum = 0;
@@ -27,7 +26,6 @@ async function updateDynamicText(data) {
   });
   const avgPm25 = (sum / data.length).toFixed(1);
 
-  // 2. 更新跑馬燈與首頁 AI 摘要
   let insight = '';
   let aiSummary = '';
   if (maxPm25 >= 54.5) {
@@ -47,9 +45,7 @@ async function updateDynamicText(data) {
   const summaryEl = document.getElementById('ai-summary-text');
   if (summaryEl) summaryEl.innerHTML = aiSummary;
 
-  // 3. 呼叫外部 API 抓取即時天氣，並與空污數據結合
   try {
-    // 使用免金鑰的 Open-Meteo API 抓取台北市即時天氣
     const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&current=temperature_2m,wind_speed_10m,weather_code&timezone=Asia%2FTaipei');
     const weatherData = await weatherRes.json();
     const current = weatherData.current;
@@ -59,13 +55,11 @@ async function updateDynamicText(data) {
     const weatherCode = current.weather_code;
     const updateTime = new Date().toLocaleString('zh-TW');
 
-    // 簡易 WMO 天氣代碼轉換
     let weatherDesc = '晴到多雲';
     if (weatherCode >= 51 && weatherCode <= 69) weatherDesc = '局部短暫雨';
     else if (weatherCode >= 71) weatherDesc = '大雨或雷雨';
     else if (weatherCode >= 41 && weatherCode <= 48) weatherDesc = '霧或霾';
 
-    // 更新 HTML 畫面
     const timeEl = document.querySelector('.weather-suggestion-box .update-time');
     const descEl = document.getElementById('weather-realtime-desc');
     const adviceEl = document.getElementById('weather-realtime-advice');
@@ -73,7 +67,6 @@ async function updateDynamicText(data) {
     if (timeEl) timeEl.innerText = `即時資料連線時間：${updateTime}`;
     if (descEl) descEl.innerHTML = `今日台北地區即時天氣：<strong>${weatherDesc}</strong>，氣溫約 <strong>${temp}°C</strong>，風速 <strong>${wind} km/h</strong>。<br>根據「空污共犯」最新數據，目前大台北平均 PM2.5 濃度約為 <strong>${avgPm25} µg/m³</strong>。`;
 
-    // 結合氣象與空污的智慧防護建議
     if (adviceEl) {
       if (avgPm25 > 35.4) {
         adviceEl.innerHTML = `<strong>⚠️ 防護建議：</strong> 目前空污濃度偏高，且氣溫為 ${temp}°C。強烈建議機車族與戶外活動者配戴口罩，並減少劇烈運動。`;
@@ -87,8 +80,19 @@ async function updateDynamicText(data) {
     console.error('天氣 API 讀取失敗', error);
   }
 }
-// ==========================================
 
+// === 圖表頁籤切換邏輯 ===
+function switchChartTab(tabId, btnElement) {
+  // 移除所有 active 狀態
+  document.querySelectorAll('.chart-tab').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.chart-panel').forEach(panel => panel.classList.remove('active'));
+  
+  // 啟動點擊的標籤與對應面板
+  btnElement.classList.add('active');
+  document.getElementById(`chart-panel-${tabId}`).classList.add('active');
+}
+
+// === 圖表渲染主函式 (含縮放與時段篩選) ===
 function renderCharts() {
   if (globalData.length === 0) return;
 
@@ -100,6 +104,20 @@ function renderCharts() {
     trendData = globalData.filter(d => d.pm25 >= 35.5);
   } else if (filterValue === 'danger') {
     trendData = globalData.filter(d => d.pm25 >= 54.5);
+  }
+
+  const timeFilterElement = document.getElementById('chartTimeRangeFilter');
+  const timeFilterValue = timeFilterElement ? timeFilterElement.value : 'all';
+  
+  if (timeFilterValue !== 'all') {
+    let pointsToKeep = trendData.length;
+    if (timeFilterValue === '1h') pointsToKeep = 360; 
+    else if (timeFilterValue === '6h') pointsToKeep = 2160; 
+    else if (timeFilterValue === '24h') pointsToKeep = 8640; 
+    
+    if (trendData.length > pointsToKeep) {
+      trendData = trendData.slice(trendData.length - pointsToKeep);
+    }
   }
 
   const labels = trendData.map(d => d.timestamp ? d.timestamp.split(' ')[1] || d.timestamp : '');
@@ -138,8 +156,19 @@ function renderCharts() {
         responsive: true, 
         maintainAspectRatio: false, 
         plugins: { 
-          title: { display: true, text: 'PM2.5 濃度時間趨勢', font: { size: 16 } },
-          datalabels: { display: false } 
+          title: { display: true, text: 'PM2.5 濃度時間趨勢 (可使用滾輪縮放與滑鼠拖曳平移)', font: { size: 16 } },
+          datalabels: { display: false },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'x',
+            },
+            zoom: {
+              wheel: { enabled: true },
+              pinch: { enabled: true },
+              mode: 'x',
+            }
+          }
         },
         scales: {
           x: {
@@ -148,6 +177,9 @@ function renderCharts() {
               maxRotation: 45, 
               minRotation: 0
             }
+          },
+          y: {
+            suggestedMax: 60 
           }
         }
       }
@@ -188,7 +220,7 @@ function renderCharts() {
   }
 }
 
-// 抓取資料主函式 (PapaParse)
+// === 抓取資料主函式 (PapaParse) ===
 function fetchData(isAuto = false) {
   if (!isAuto) document.getElementById('data-status').innerText = '資料讀取中...';
 
@@ -206,8 +238,6 @@ function fetchData(isAuto = false) {
       
       clearMapMarkers();
       renderCharts();
-      
-      // ★ 在資料讀取完畢後，執行我們的動態文字更新邏輯 ★
       updateDynamicText(globalData);
 
       const reversedData = [...globalData].reverse();
