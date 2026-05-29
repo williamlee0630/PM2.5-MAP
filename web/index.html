@@ -115,11 +115,11 @@
     .routing-header-title { font-size: 26px; color: #1f1f1f; font-weight: bold; margin-bottom: 12px; }
     .routing-desc { font-size: 15px; color: #5f6368; line-height: 1.6; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #eaf1fd; }
     
-    .route-input-group { display: flex; gap: 16px; margin-bottom: 24px; background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #e0e4e9;}
-    .route-input-field { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .route-input-group { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #e0e4e9;}
+    .route-input-field { display: flex; flex-direction: column; gap: 8px; }
     .route-input-field label { font-size: 14px; font-weight: bold; color: #444746; display: flex; align-items: center; gap: 6px;}
-    .route-input-field input { padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;}
-    .route-input-field input:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+    .route-input-field input, .route-input-field select { padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s; background: #fff;}
+    .route-input-field input:focus, .route-input-field select:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
     
     .btn-calculate-route { background: #1a73e8; color: #fff; border: none; padding: 14px 24px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
     .btn-calculate-route:hover { background: #1557b0; }
@@ -232,7 +232,6 @@
       .settings-container { padding: 20px 15px; }
       #view-home, #view-news, #view-routing { padding: 20px 15px; }
       .setting-row { flex-direction: column; gap: 12px; }
-      .route-input-group { flex-direction: column; }
     }
   </style>
 </head>
@@ -342,14 +341,22 @@
           本功能串接 Python 後端演算法與 K-D Tree 空間索引技術。系統將會抓取導航 API 的多條替代路線，並與雲端樞紐的即時微型感測網進行交叉運算，為您規劃出曝露風險最低的「黃金健康路線」。
         </p>
 
-        <div class="route-input-group">
-          <div class="route-input-field">
+        <div class="route-input-group" style="flex-wrap: wrap;">
+          <div class="route-input-field" style="flex: 1; min-width: 200px;">
             <label><span class="material-symbols-outlined" style="font-size:18px; color:#1a73e8;">my_location</span> 選擇出發地</label>
-            <input type="text" id="route-start" placeholder="例如：東吳大學城中校區" value="東吳大學城中校區">
+            <input type="text" id="route-start" placeholder="例如：東吳大學城中校區" value="士林東吳大學">
           </div>
-          <div class="route-input-field">
+          <div class="route-input-field" style="flex: 1; min-width: 200px;">
             <label><span class="material-symbols-outlined" style="font-size:18px; color:#d93025;">location_on</span> 選擇目的地</label>
-            <input type="text" id="route-end" placeholder="例如：台北車站" value="台北車站">
+            <input type="text" id="route-end" placeholder="例如：士林捷運站" value="士林捷運站">
+          </div>
+          <div class="route-input-field" style="flex: 0 0 100%; margin-top: 12px;">
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#fbbc04;">commute</span> 選擇交通方式</label>
+            <select id="route-mode" style="padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; background: #fff; cursor: pointer;">
+              <option value="driving">🚗 汽 / 機車 (優先走主要幹道)</option>
+              <option value="bike">🚲 自行車 (優先走河濱或單車道)</option>
+              <option value="foot">🚶 步行 (允許穿越巷弄與人行道)</option>
+            </select>
           </div>
         </div>
         
@@ -568,13 +575,13 @@
       return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
     }
 
-    // ★ 2. 獲取真實導航路徑 (使用免費的 OSRM API)
-    async function getOSRMRoute(startCoord, endCoord) {
-      // OSRM 格式是 經度,緯度
-      const url = `https://router.project-osrm.org/route/v1/driving/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
+    // ★ 2. 獲取真實導航路徑 (加入 mode 變數：driving, bike, foot)
+    async function getOSRMRoute(startCoord, endCoord, mode = 'driving') {
+      // 網址中間的 /driving/ 被替換成動態的 /${mode}/
+      const url = `https://router.project-osrm.org/route/v1/${mode}/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.code !== 'Ok') throw new Error("無法規劃導航路線");
+      if (data.code !== 'Ok') throw new Error("無法規劃此交通方式的導航路線");
       return data.routes;
     }
 
@@ -586,6 +593,7 @@
       
       const startAddress = document.getElementById('route-start').value;
       const endAddress = document.getElementById('route-end').value;
+      const routeMode = document.getElementById('route-mode').value; // 抓取使用者選的交通方式
 
       if (!startAddress || !endAddress) {
         alert("請輸入完整的起點與目的地！");
@@ -597,50 +605,47 @@
       resultsContainer.classList.remove('active');
 
       try {
-        // 第一步：解析起迄點座標
         const startCoord = await geocodeAddress(startAddress);
         const endCoord = await geocodeAddress(endAddress);
 
-        // 第二步：向 OSRM 請求真實街道導航路線
-        const osrmRoutes = await getOSRMRoute(startCoord, endCoord);
+        // 將抓到的交通方式 (routeMode) 傳給 OSRM 引擎
+        const osrmRoutes = await getOSRMRoute(startCoord, endCoord, routeMode);
 
-        // 第三步：將 OSRM 路線轉換為 Python 後端需要的格式
         const payload = { routes: [] };
+        
+        // 為了讓 UI 更酷，我們根據交通方式加上對應的 emoji
+        const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'bike' ? '🚲' : '🚶');
+
         osrmRoutes.forEach((route, index) => {
-          // OSRM 回傳的是 [lon, lat]，我們的 Python 需要 [lat, lon]
           const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+          // 讓側邊欄卡片顯示是哪種交通方式
           payload.routes.push({
-            route_id: `導航選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`,
+            route_id: `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`,
             coordinates: coords,
-            original_geojson: route.geometry.coordinates // 保留原始格式用來畫圖
+            original_geojson: route.geometry.coordinates
           });
         });
 
-        // 第四步：送給 Python 進行 K-D Tree 空污交集運算
+        // 送給 Render 雲端 Python 進行 K-D Tree 運算
         const pyRes = await fetch('https://pm2-5-map.onrender.com/api/calculate-health-routes', {
-  method: 'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        if (!pyRes.ok) throw new Error("Python 後端伺服器無回應，請確認 uvicorn 是否啟動");
+        if (!pyRes.ok) throw new Error("Python 後端伺服器無回應");
         const pyData = await pyRes.json();
 
-        // 第五步：清理舊的地圖路線
         currentRouteLayers.forEach(layer => map.removeLayer(layer));
         currentRouteLayers = [];
-
-        // 第六步：渲染卡片與地圖畫線
         wrapper.innerHTML = ''; 
         
-        // 為了讓最好的路線畫在最上面，我們先畫普通的，最後畫推薦的
         const sortedResults = pyData.results.sort((a, b) => a.is_ai_recommended ? 1 : -1);
 
         sortedResults.forEach(routeResult => {
           const isRec = routeResult.is_ai_recommended;
           const scoreClass = isRec ? 'healthy' : '';
           
-          // 產生側邊欄卡片
           const cardHtml = `
             <div class="route-result-card ${isRec ? 'recommended' : ''}" style="cursor: pointer;" onclick="switchTab('map', document.querySelector('.menu-item[onclick*=\\'map\\']'))">
               <div class="route-result-info">
@@ -653,14 +658,12 @@
               </div>
             </div>
           `;
-          wrapper.insertAdjacentHTML('afterbegin', cardHtml); // 最健康的插在最上面
+          wrapper.insertAdjacentHTML('afterbegin', cardHtml); 
 
-          // 在 Leaflet 地圖上畫出真實路徑
-          // 找出對應的原始座標
           const originalRoute = payload.routes.find(r => r.route_id === routeResult.route_id);
           if (originalRoute && typeof L !== 'undefined' && map) {
             const polyline = L.polyline(originalRoute.coordinates, {
-              color: isRec ? '#0f9d58' : '#80868b', // 健康的畫綠色，其餘灰色
+              color: isRec ? '#0f9d58' : '#80868b', 
               weight: isRec ? 7 : 4,
               opacity: isRec ? 0.9 : 0.6,
               dashArray: isRec ? null : '10, 10'
@@ -668,7 +671,7 @@
             
             if (isRec) {
               polyline.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${routeResult.average_exposure_pm25} µg/m³`).openPopup();
-              map.fitBounds(polyline.getBounds(), { padding: [50, 50] }); // 視角自動縮放至完整路線
+              map.fitBounds(polyline.getBounds(), { padding: [50, 50] }); 
             }
             currentRouteLayers.push(polyline);
           }
@@ -676,7 +679,6 @@
 
         resultsContainer.classList.add('active');
         
-        // 自動幫使用者切換到地圖分頁來看結果
         alert("運算完成！已在地圖上為您標示 AI 推薦的最健康路線。");
         switchTab('map', document.querySelector('.menu-item[onclick*=\'map\']'));
 
