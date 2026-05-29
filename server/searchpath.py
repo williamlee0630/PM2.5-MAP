@@ -30,10 +30,43 @@ class RouteGeometry(BaseModel):
 class HealthRoutingRequest(BaseModel):
     routes: List[RouteGeometry]
 
-# --- 新增：伺服器健康檢查端點 (讓 Render 順利通過驗證) ---
+# --- 伺服器健康檢查端點 (讓 Render 順利通過驗證) ---
 @app.get("/")
 def health_check():
     return {"status": "online", "message": "空污共犯 API 伺服器運作中！"}
+
+# --- 新增：後端地理編碼代理端點 (解決 CORS 與 User-Agent 阻擋) ---
+@app.get("/api/geocode")
+def geocode_address(q: str):
+    """
+    由 Python 代替前端向 Nominatim 發送請求，徹底繞過瀏覽器 CORS 限制
+    """
+    if not q:
+        raise HTTPException(status_code=400, detail="請提供查詢地址")
+        
+    # 遵照 Nominatim 官方規範，加入具體合法的 User-Agent 識別身分
+    headers = {
+        "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)"
+    }
+    
+    url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(q)}&countrycodes=tw&limit=1"
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        if not data:
+            raise HTTPException(status_code=404, detail="找不到該地址的地理座標")
+            
+        # 回傳前端需要的經緯度格式
+        return {
+            "lat": float(data[0]["lat"]),
+            "lon": float(data[0]["lon"])
+        }
+    except Exception as e:
+        print(f"地理編碼失敗: {str(e)}")
+        raise HTTPException(status_code=500, detail="第三方地理資訊服務暫時無回應")
 
 # --- 核心運算邏輯 ---
 def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, cKDTree]:

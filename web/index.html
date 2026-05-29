@@ -361,7 +361,7 @@
         </div>
         
         <button class="btn-calculate-route" id="btn-calc-route" onclick="callPythonRoutingAPI()">
-          <span class="material-symbols-outlined">route</span> 啟動 AI 演算法計算健康路線
+          <span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線
         </button>
 
         <div class="route-results-area" id="route-results-container">
@@ -566,13 +566,18 @@
     // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
     let currentRouteLayers = [];
 
-    // ★ 1. 將地址文字轉換為經緯度 (使用免費的 OpenStreetMap Nominatim API)
+    // ★ 1. 將地址文字轉換為經緯度 (改走自己的 Render 後端代理，解決 CORS 問題)
     async function geocodeAddress(address) {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=tw&limit=1`;
+      const url = `https://pm2-5-map.onrender.com/api/geocode?q=${encodeURIComponent(address)}`;
       const res = await fetch(url);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || `找不到地址：${address}`);
+      }
+      
       const data = await res.json();
-      if (data.length === 0) throw new Error(`找不到地址：${address}`);
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      return data; // 後端已經整理好 { lat, lon } 格式了
     }
 
     // ★ 2. 獲取真實導航路徑 (加入 mode 變數：driving, bike, foot)
@@ -679,7 +684,7 @@
 
         resultsContainer.classList.add('active');
         
-        alert("運算完成！已在地圖上為您標示 AI 推薦的最健康路線。");
+        alert("運算完成！已在地圖上為您標示推薦的最健康路線。");
         switchTab('map', document.querySelector('.menu-item[onclick*=\'map\']'));
 
       } catch (err) {
