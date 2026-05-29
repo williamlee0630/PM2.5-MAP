@@ -36,6 +36,7 @@ def health_check():
     return {"status": "online", "message": "空污共犯 API 伺服器運作中！"}
 
 # --- 新增：後端地理編碼代理端點 (解決 CORS 與 User-Agent 阻擋) ---
+# --- 新增：後端地理編碼代理端點 (優化版：強化穩定性與錯誤捕捉) ---
 @app.get("/api/geocode")
 def geocode_address(q: str):
     """
@@ -44,28 +45,44 @@ def geocode_address(q: str):
     if not q:
         raise HTTPException(status_code=400, detail="請提供查詢地址")
         
-    # 遵照 Nominatim 官方規範，加入具體合法的 User-Agent 識別身分
     headers = {
-        "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)"
+        "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)",
+        "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
     }
     
-    url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(q)}&countrycodes=tw&limit=1"
+    url = "https://nominatim.openstreetmap.org/search"
+    # 使用 params 字典，讓 requests 套件自動幫我們做最安全的 URL 中文編碼
+    params = {
+        "format": "json",
+        "q": q,
+        "countrycodes": "tw",
+        "limit": 1
+    }
     
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        # 將超時時間放寬到 10 秒
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        # 捕捉特定的 HTTP 錯誤 (例如 403 Forbidden 或 429 Too Many Requests)
         response.raise_for_status()
+        
         data = response.json()
         
         if not data:
-            raise HTTPException(status_code=404, detail="找不到該地址的地理座標")
+            raise HTTPException(status_code=404, detail=f"找不到該地址的地理座標：{q}")
             
-        # 回傳前端需要的經緯度格式
         return {
             "lat": float(data[0]["lat"]),
             "lon": float(data[0]["lon"])
         }
+    except requests.exceptions.HTTPError as err:
+        print(f"OSM 伺服器拒絕請求: 狀態碼 {response.status_code}, 訊息: {response.text}")
+        raise HTTPException(status_code=502, detail="地圖伺服器暫時阻擋了請求，請稍後再試")
+    except requests.exceptions.Timeout:
+        print("OSM 伺服器連線逾時")
+        raise HTTPException(status_code=504, detail="第三方地圖伺服器連線逾時，請重新嘗試")
     except Exception as e:
-        print(f"地理編碼失敗: {str(e)}")
+        print(f"地理編碼發生未預期錯誤: {str(e)}")
         raise HTTPException(status_code=500, detail="第三方地理資訊服務暫時無回應")
 
 # --- 核心運算邏輯 ---
