@@ -189,6 +189,10 @@ async def geocode_address(request: Request, q: str):
     except Exception as e:
         print(f"地理編碼發生未預期錯誤: {str(e)}")
         raise HTTPException(status_code=500, detail="第三方地理資訊服務暫時無回應")
+    except httpx.HTTPStatusError as e:
+    # 加這行，去 Render log 看實際狀態碼是幾號
+    print(f"實際狀態碼: {e.response.status_code}, 回應內容: {e.response.text}")
+    raise HTTPException(status_code=502, ...)
 
 
 @app.post("/api/calculate-health-routes")
