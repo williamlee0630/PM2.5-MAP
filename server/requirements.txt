@@ -1,7 +1,7 @@
 fastapi
-uvicorn
-requests
+uvicorn[standard]
+httpx
 pandas
-scipy
 numpy
-pydantic
+scikit-learn
+slowapi
