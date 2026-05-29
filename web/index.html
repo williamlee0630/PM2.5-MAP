@@ -617,8 +617,8 @@
         });
 
         // 第四步：送給 Python 進行 K-D Tree 空污交集運算
-        const pyRes = await fetch('http://127.0.0.1:8000/api/calculate-health-routes', {
-          method: 'POST',
+        const pyRes = await fetch('https://pm2-5-map.onrender.com/api/calculate-health-routes', {
+  method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
