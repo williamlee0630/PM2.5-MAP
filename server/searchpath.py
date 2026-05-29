@@ -1,5 +1,4 @@
-# main.py
-# pip install fastapi uvicorn requests pandas scipy numpy pydantic
+# searchpath.py
 import requests
 import io
 import pandas as pd
@@ -25,11 +24,16 @@ CSV_URL = "https://docs.google.com/spreadsheets/d/1jcRopeeqnT786iB9m6Jd8oQH34S2A
 
 # --- Pydantic 資料型態定義 ---
 class RouteGeometry(BaseModel):
-    route_id: str                      # 路線識別碼 (例如: "route_fastest", "route_alternative")
-    coordinates: List[Tuple[float, float]] # 該導航路線的經緯度點序列: [(lat1, lon1), (lat2, lon2), ...]
+    route_id: str                      # 路線識別碼
+    coordinates: List[Tuple[float, float]] # 該導航路線的經緯度點序列
 
 class HealthRoutingRequest(BaseModel):
     routes: List[RouteGeometry]
+
+# --- 新增：伺服器健康檢查端點 (讓 Render 順利通過驗證) ---
+@app.get("/")
+def health_check():
+    return {"status": "online", "message": "空污共犯 API 伺服器運作中！"}
 
 # --- 核心運算邏輯 ---
 def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, cKDTree]:
@@ -71,18 +75,16 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
     
     # 2. 迭代評估每條替代路線
     for route in payload.routes:
-        route_points = np.array(route.coordinates) # 轉換為 NumPy 陣列加速運算
+        route_points = np.array(route.coordinates)
         
         if len(route_points) == 0:
             continue
             
-        # 3. 秒級高性能尋找：直接找出地圖路徑上各個點「最近的微型感測器」索引
-        # distance_upper_bound=0.01 大約限制在方圓 1 公里內，避免拉到過遠的測站
+        # 3. 找出地圖路徑上各個點「最近的微型感測器」索引 (約 1km 範圍內)
         distances, indices = spatial_tree.query(route_points, k=1, distance_upper_bound=0.01)
         
         valid_pm25_list = []
         for dist, idx in zip(distances, indices):
-            # 如果在限定距離內找到了最近的感測器點位
             if dist != np.inf and idx < len(sensor_pm25_values):
                 valid_pm25_list.append(sensor_pm25_values[idx])
         
@@ -91,7 +93,7 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
             avg_exposure = float(np.mean(valid_pm25_list))
             max_exposure = float(np.max(valid_pm25_list))
         else:
-            # 萬一該路線周邊完全沒有任何移動感測器覆蓋，則給予基準背景值(例如總平均)
+            # 萬一周邊無感測器，給予基準背景值
             avg_exposure = float(df_sensors['pm25'].mean())
             max_exposure = float(df_sensors['pm25'].max())
             
@@ -102,12 +104,12 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
             "analyzed_points_count": len(route.coordinates)
         })
         
-    # 5. 根據平均曝露值由低到高排序 (越健康排在越前面)
+    # 5. 根據平均曝露值由低到高排序
     evaluated_results.sort(key=lambda x: x["average_exposure_pm25"])
     
     # 6. 動態注入決策標籤
     for i, res in enumerate(evaluated_results):
-        res["is_ai_recommended"] = (i == 0) # 曝露值最低者獲選為 AI 最佳健康推薦路徑
+        res["is_ai_recommended"] = (i == 0)
         
     return {
         "status": "success",
@@ -116,5 +118,5 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    # ✅ 已修正為 "main:app" 以確保能正確找到 FastAPI 實例
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # 本地測試時的啟動參數
+    uvicorn.run("searchpath:app", host="0.0.0.0", port=8000, reload=True)
