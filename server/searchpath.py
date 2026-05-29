@@ -1,4 +1,5 @@
 # main.py
+pip install fastapi uvicorn requests pandas scipy numpy pydantic
 import requests
 import io
 import pandas as pd
