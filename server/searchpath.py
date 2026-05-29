@@ -1,5 +1,5 @@
 # main.py
-#pip install fastapi uvicorn requests pandas scipy numpy pydantic
+# pip install fastapi uvicorn requests pandas scipy numpy pydantic
 import requests
 import io
 import pandas as pd
@@ -116,4 +116,5 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main.py", host="0.0.0.0", port=8000, reload=True)
+    # ✅ 已修正為 "main:app" 以確保能正確找到 FastAPI 實例
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

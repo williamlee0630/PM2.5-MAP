@@ -556,70 +556,137 @@
   <script src="js/app.js"></script>
 
   <script>
-    // ★ 處理呼叫 Python API 的前端邏輯 ★
-    function callPythonRoutingAPI() {
+    // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
+    let currentRouteLayers = [];
+
+    // ★ 1. 將地址文字轉換為經緯度 (使用免費的 OpenStreetMap Nominatim API)
+    async function geocodeAddress(address) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=tw&limit=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.length === 0) throw new Error(`找不到地址：${address}`);
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+
+    // ★ 2. 獲取真實導航路徑 (使用免費的 OSRM API)
+    async function getOSRMRoute(startCoord, endCoord) {
+      // OSRM 格式是 經度,緯度
+      const url = `https://router.project-osrm.org/route/v1/driving/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code !== 'Ok') throw new Error("無法規劃導航路線");
+      return data.routes;
+    }
+
+    // ★ 3. 處理呼叫 Python API 與前端互動的主邏輯
+    async function callPythonRoutingAPI() {
       const btn = document.getElementById('btn-calc-route');
       const resultsContainer = document.getElementById('route-results-container');
       const wrapper = document.getElementById('route-cards-wrapper');
       
+      const startAddress = document.getElementById('route-start').value;
+      const endAddress = document.getElementById('route-end').value;
+
+      if (!startAddress || !endAddress) {
+        alert("請輸入完整的起點與目的地！");
+        return;
+      }
+
       btn.disabled = true;
-      btn.innerHTML = `<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span> K-D Tree 空間索引運算中...`;
+      btn.innerHTML = `<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span> 地理編碼與空間運算中...`;
       resultsContainer.classList.remove('active');
 
-      // 模擬兩條從導航 API 抓出來的替代路線座標
-      const samplePayload = {
-        routes: [
-          {
-            route_id: "路線一：主要幹道 (較短，但車流大)", 
-            coordinates: [[25.0416, 121.5438], [25.0422, 121.5320], [25.0461, 121.5175]] 
-          },
-          {
-            route_id: "路線二：繞行住宅區 (較遠，但避開車潮)", 
-            coordinates: [[25.0416, 121.5438], [25.0450, 121.5400], [25.0480, 121.5175]]
-          }
-        ]
-      };
+      try {
+        // 第一步：解析起迄點座標
+        const startCoord = await geocodeAddress(startAddress);
+        const endCoord = await geocodeAddress(endAddress);
 
-      fetch('http://127.0.0.1:8000/api/calculate-health-routes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(samplePayload)
-      })
-      .then(res => {
-        if (!res.ok) throw new Error("API 回應錯誤");
-        return res.json();
-      })
-      .then(data => {
-        wrapper.innerHTML = ''; // 清空舊結果
+        // 第二步：向 OSRM 請求真實街道導航路線
+        const osrmRoutes = await getOSRMRoute(startCoord, endCoord);
+
+        // 第三步：將 OSRM 路線轉換為 Python 後端需要的格式
+        const payload = { routes: [] };
+        osrmRoutes.forEach((route, index) => {
+          // OSRM 回傳的是 [lon, lat]，我們的 Python 需要 [lat, lon]
+          const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+          payload.routes.push({
+            route_id: `導航選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`,
+            coordinates: coords,
+            original_geojson: route.geometry.coordinates // 保留原始格式用來畫圖
+          });
+        });
+
+        // 第四步：送給 Python 進行 K-D Tree 空污交集運算
+        const pyRes = await fetch('http://127.0.0.1:8000/api/calculate-health-routes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!pyRes.ok) throw new Error("Python 後端伺服器無回應，請確認 uvicorn 是否啟動");
+        const pyData = await pyRes.json();
+
+        // 第五步：清理舊的地圖路線
+        currentRouteLayers.forEach(layer => map.removeLayer(layer));
+        currentRouteLayers = [];
+
+        // 第六步：渲染卡片與地圖畫線
+        wrapper.innerHTML = ''; 
         
-        data.results.forEach(route => {
-          const isRec = route.is_ai_recommended;
+        // 為了讓最好的路線畫在最上面，我們先畫普通的，最後畫推薦的
+        const sortedResults = pyData.results.sort((a, b) => a.is_ai_recommended ? 1 : -1);
+
+        sortedResults.forEach(routeResult => {
+          const isRec = routeResult.is_ai_recommended;
           const scoreClass = isRec ? 'healthy' : '';
+          
+          // 產生側邊欄卡片
           const cardHtml = `
-            <div class="route-result-card ${isRec ? 'recommended' : ''}">
+            <div class="route-result-card ${isRec ? 'recommended' : ''}" style="cursor: pointer;" onclick="switchTab('map', document.querySelector('.menu-item[onclick*=\\'map\\']'))">
               <div class="route-result-info">
-                <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${route.route_id}</h4>
-                <p>涵蓋空污分析點位：${route.analyzed_points_count} 個 ｜ 途中最高測得：${route.peak_exposure_pm25} µg/m³</p>
+                <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${routeResult.route_id}</h4>
+                <p>沿途比對感測點：${routeResult.analyzed_points_count} 個 ｜ 最高：${routeResult.peak_exposure_pm25} µg/m³</p>
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 13px; color: #5f6368; display: block;">預計平均曝露值</span>
-                <span class="route-pm-score ${scoreClass}">${route.average_exposure_pm25} <small style="font-size: 14px; color:#5f6368; font-weight:normal;">µg/m³</small></span>
+                <span class="route-pm-score ${scoreClass}">${routeResult.average_exposure_pm25} <small style="font-size: 14px; color:#5f6368; font-weight:normal;">µg/m³</small></span>
               </div>
             </div>
           `;
-          wrapper.insertAdjacentHTML('beforeend', cardHtml);
+          wrapper.insertAdjacentHTML('afterbegin', cardHtml); // 最健康的插在最上面
+
+          // 在 Leaflet 地圖上畫出真實路徑
+          // 找出對應的原始座標
+          const originalRoute = payload.routes.find(r => r.route_id === routeResult.route_id);
+          if (originalRoute && typeof L !== 'undefined' && map) {
+            const polyline = L.polyline(originalRoute.coordinates, {
+              color: isRec ? '#0f9d58' : '#80868b', // 健康的畫綠色，其餘灰色
+              weight: isRec ? 7 : 4,
+              opacity: isRec ? 0.9 : 0.6,
+              dashArray: isRec ? null : '10, 10'
+            }).addTo(map);
+            
+            if (isRec) {
+              polyline.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${routeResult.average_exposure_pm25} µg/m³`).openPopup();
+              map.fitBounds(polyline.getBounds(), { padding: [50, 50] }); // 視角自動縮放至完整路線
+            }
+            currentRouteLayers.push(polyline);
+          }
         });
 
         resultsContainer.classList.add('active');
-      })
-      .catch(err => {
-        alert("運算失敗！請確認本機是否有啟動 uvicorn server (http://127.0.0.1:8000)");
+        
+        // 自動幫使用者切換到地圖分頁來看結果
+        alert("運算完成！已在地圖上為您標示 AI 推薦的最健康路線。");
+        switchTab('map', document.querySelector('.menu-item[onclick*=\'map\']'));
+
+      } catch (err) {
+        alert("發生錯誤：" + err.message);
         console.error(err);
-      })
-      .finally(() => {
+      } finally {
         btn.disabled = false;
         btn.innerHTML = `<span class="material-symbols-outlined">route</span> 啟動 AI 演算法計算健康路線`;
-      });
+      }
     }
 
     // 加入旋轉動畫給 loading 狀態
