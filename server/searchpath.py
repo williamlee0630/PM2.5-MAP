@@ -1,6 +1,3 @@
-# searchpath.py
-# 空污共犯 - 健康路徑規劃子系統 API（優化版）
-
 import io
 from datetime import datetime, timedelta
 from typing import List, Tuple
@@ -31,8 +28,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # ─────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # TODO: 上線前請限縮為指定網域
-    allow_credentials=False,   # 修正：與 allow_origins=["*"] 同時為 True 會被瀏覽器拒絕
+    allow_origins=["*"],       # TODO: 上線前請限縮為指定網域
+    allow_credentials=False,   # 與 allow_origins=["*"] 並存時必須為 False
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -45,7 +42,7 @@ CSV_URL = (
     "1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ/export?format=csv"
 )
 
-# 感測器搜尋半徑：0.01 弧度 ≈ 6.4 公里（haversine 度量單位為弧度）
+# 感測器搜尋半徑：0.01 弧度 ≈ 6.4 公里（BallTree haversine 單位為弧度）
 SEARCH_RADIUS_RADIANS = 0.01
 
 # 感測器資料快取有效期限
@@ -70,10 +67,49 @@ _cache: dict = {
     "updated_at": None,
 }
 
+# ─────────────────────────────────────────────
+# 地理編碼備援函式
+# ─────────────────────────────────────────────
+async def _try_photon(client: httpx.AsyncClient, q: str) -> dict | None:
+    """主要服務：Photon（基於 OSM，對雲端伺服器 IP 限制較寬鬆，無需金鑰）"""
+    r = await client.get(
+        "https://photon.komoot.io/api/",
+        params={"q": q, "limit": 1, "lang": "zh"},
+        timeout=10.0,
+    )
+    r.raise_for_status()
+    features = r.json().get("features", [])
+    if not features:
+        return None
+    coords = features[0]["geometry"]["coordinates"]  # [lon, lat]
+    return {"lat": coords[1], "lon": coords[0]}
+
+
+async def _try_nominatim(client: httpx.AsyncClient, q: str) -> dict | None:
+    """備援服務：Nominatim（若 Photon 失敗時嘗試）"""
+    r = await client.get(
+        "https://nominatim.openstreetmap.org/search",
+        headers={
+            "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)",
+            "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+        },
+        params={"format": "json", "q": q, "countrycodes": "tw", "limit": 1},
+        timeout=10.0,
+    )
+    r.raise_for_status()
+    data = r.json()
+    if not data:
+        return None
+    return {"lat": float(data[0]["lat"]), "lon": float(data[0]["lon"])}
+
+
+# ─────────────────────────────────────────────
+# 感測器資料抓取與快取
+# ─────────────────────────────────────────────
 async def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, BallTree]:
     """
     從 Google Sheets 即時抓取開源數據，並建立 BallTree 空間索引。
-    
+
     優化重點：
     1. 使用 httpx 非同步請求，避免阻塞 FastAPI 事件迴圈
     2. 加入 TTL 快取機制，每 5 分鐘才重新抓取，減少外部請求次數
@@ -133,66 +169,40 @@ def health_check():
 
 
 @app.get("/api/geocode")
-@limiter.limit("1/second")         # 遵守 Nominatim 使用政策：每秒最多 1 次請求
+@limiter.limit("1/second")
 async def geocode_address(request: Request, q: str):
     """
-    由 Python 代替前端向 Nominatim 發送請求，徹底繞過瀏覽器 CORS 限制。
+    由 Python 代替前端向地理編碼服務發送請求，徹底繞過瀏覽器 CORS 限制。
 
-    優化重點：
-    1. 改為 async，使用 httpx 非同步請求
-    2. 修正 response 變數在例外中可能未定義的問題
-    3. 加入 slowapi 速率限制，防止 IP 被 Nominatim 封鎖
+    服務優先順序：
+    1. Photon（主要）— 對雲端 IP 限制寬鬆，無需金鑰
+    2. Nominatim（備援）— Photon 失敗時自動切換
+
+    修正項目：
+    - 移除重複的 except 區塊（語法錯誤）
+    - 改用雙服務備援，解決 Render IP 被封鎖問題
     """
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="請提供查詢地址")
 
-    headers = {
-        "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)",
-        "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-    }
-    params = {
-        "format": "json",
-        "q": q.strip(),
-        "countrycodes": "tw",
-        "limit": 1,
-    }
+    async with httpx.AsyncClient() as client:
+        for provider in [_try_photon, _try_nominatim]:
+            try:
+                result = await provider(client, q.strip())
+                if result:
+                    return result
+            except httpx.HTTPStatusError as e:
+                print(f"{provider.__name__} 被拒絕: 狀態碼 {e.response.status_code}, 內容: {e.response.text}")
+                continue
+            except httpx.TimeoutException:
+                print(f"{provider.__name__} 連線逾時")
+                continue
+            except Exception as e:
+                print(f"{provider.__name__} 發生未預期錯誤: {str(e)}")
+                continue
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://nominatim.openstreetmap.org/search",
-                headers=headers,
-                params=params,
-            )
-            response.raise_for_status()
-
-        data = response.json()
-
-        if not data:
-            raise HTTPException(status_code=404, detail=f"找不到該地址的地理座標：{q}")
-
-        return {
-            "lat": float(data[0]["lat"]),
-            "lon": float(data[0]["lon"]),
-        }
-
-    except HTTPException:
-        # 讓 FastAPI 的 HTTPException 正常往上傳遞，不被下方 except 攔截
-        raise
-    except httpx.HTTPStatusError as e:
-        # 修正：直接從例外物件取得 status_code，不依賴外部 response 變數
-        print(f"OSM 伺服器拒絕請求: 狀態碼 {e.response.status_code}")
-        raise HTTPException(status_code=502, detail="地圖伺服器暫時阻擋了請求，請稍後再試")
-    except httpx.TimeoutException:
-        print("OSM 伺服器連線逾時")
-        raise HTTPException(status_code=504, detail="第三方地圖伺服器連線逾時，請重新嘗試")
-    except Exception as e:
-        print(f"地理編碼發生未預期錯誤: {str(e)}")
-        raise HTTPException(status_code=500, detail="第三方地理資訊服務暫時無回應")
-    except httpx.HTTPStatusError as e:
-    # 加這行，去 Render log 看實際狀態碼是幾號
-    print(f"實際狀態碼: {e.response.status_code}, 回應內容: {e.response.text}")
-    raise HTTPException(status_code=502, ...)
+    # 兩個服務都失敗
+    raise HTTPException(status_code=502, detail="所有地理編碼服務暫時無回應，請稍後再試")
 
 
 @app.post("/api/calculate-health-routes")
@@ -200,10 +210,6 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
     """
     健康路徑權重運算端點。
     接收前端傳來的多條替代路線軌跡，利用 BallTree 進行精準空污曝露成本估算。
-
-    優化重點：
-    1. fetch_sensor_data_and_build_tree 改為 async，避免事件迴圈阻塞
-    2. 搜尋距離改用弧度單位，搭配 BallTree haversine，消除經緯度失真
     """
     if not payload.routes:
         raise HTTPException(status_code=400, detail="請提供至少一條待評估路線")
