@@ -602,7 +602,7 @@
     // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
     let currentRouteLayers = [];
 
-    // ★ 1. 將地址文字轉換為經緯度 (改走自己的 Render 後端代理，解決 CORS 問題)
+    // ★ 1. 將地址文字轉換為經緯度 (直接對接 Render 伺服器)
     async function geocodeAddress(address) {
       const url = `https://pm2-5-map.onrender.com/api/geocode?q=${encodeURIComponent(address)}`;
       const res = await fetch(url);
@@ -613,12 +613,11 @@
       }
       
       const data = await res.json();
-      return data; // 後端已經整理好 { lat, lon } 格式了
+      return data; 
     }
 
-    // ★ 2. 獲取真實導航路徑 (加入 mode 變數：driving, bike, foot)
+    // ★ 2. 獲取真實導航路徑
     async function getOSRMRoute(startCoord, endCoord, mode = 'driving') {
-      // 網址中間的 /driving/ 被替換成動態的 /${mode}/
       const url = `https://router.project-osrm.org/route/v1/${mode}/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
       const res = await fetch(url);
       const data = await res.json();
@@ -634,7 +633,7 @@
       
       const startAddress = document.getElementById('route-start').value;
       const endAddress = document.getElementById('route-end').value;
-      const routeMode = document.getElementById('route-mode').value; // 抓取使用者選的交通方式
+      const routeMode = document.getElementById('route-mode').value; 
 
       if (!startAddress || !endAddress) {
         alert("請輸入完整的起點與目的地！");
@@ -649,17 +648,14 @@
         const startCoord = await geocodeAddress(startAddress);
         const endCoord = await geocodeAddress(endAddress);
 
-        // 將抓到的交通方式 (routeMode) 傳給 OSRM 引擎
         const osrmRoutes = await getOSRMRoute(startCoord, endCoord, routeMode);
 
         const payload = { routes: [] };
         
-        // 為了讓 UI 更酷，我們根據交通方式加上對應的 emoji
         const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'bike' ? '🚲' : '🚶');
 
         osrmRoutes.forEach((route, index) => {
           const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-          // 讓側邊欄卡片顯示是哪種交通方式
           payload.routes.push({
             route_id: `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`,
             coordinates: coords,
@@ -667,14 +663,14 @@
           });
         });
 
-        // 送給 Render 雲端 Python 進行 K-D Tree 運算
+        // 送給 Render 雲端 Python 進行運算
         const pyRes = await fetch('https://pm2-5-map.onrender.com/api/calculate-health-routes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        if (!pyRes.ok) throw new Error("Python 後端伺服器無回應");
+        if (!pyRes.ok) throw new Error("Python 後端伺服器無回應 (請確認伺服器已喚醒)");
         const pyData = await pyRes.json();
 
         currentRouteLayers.forEach(layer => map.removeLayer(layer));
@@ -728,7 +724,7 @@
         console.error(err);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<span class="material-symbols-outlined">route</span> 啟動 AI 演算法計算健康路線`;
+        btn.innerHTML = `<span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線`;
       }
     }
 
