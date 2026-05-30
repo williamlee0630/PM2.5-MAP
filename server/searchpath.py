@@ -22,12 +22,7 @@ from slowapi.util import get_remote_address
 # ─────────────────────────────────────────────
 # TODO: 請在 Vercel/Render 的環境變數中設定你的 Upstash Redis URL
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-# 加上 ssl_cert_reqs="none"，讓連線對憑證的包容度變高，防止被 Upstash 誤踢
-redis_client = redis.from_url(
-    REDIS_URL,
-    decode_responses=True,
-    ssl_cert_reqs="none"
-)
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 # 建立全局 HTTP Client 以重複利用 TCP 連線
 http_client = httpx.AsyncClient(timeout=10.0)
