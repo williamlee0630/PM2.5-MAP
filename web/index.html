@@ -240,6 +240,8 @@
     .chart-controls label { font-size: 14px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 4px;}
     .chart-controls select { padding: 6px 12px; border-radius: 6px; border: 1px solid #c7c7c7; font-family: inherit; font-size: 14px; outline: none; cursor: pointer; background: #fff; }
     .chart-controls select:focus { border-color: #1a73e8; }
+    /* 選定特定日期時，時段篩選自動停用的視覺回饋 */
+    .chart-controls select:disabled { opacity: 0.38; cursor: not-allowed; background: #f0f0f0; }
 
     /* 圖表頁籤切換系統樣式 */
     .chart-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eaf1fd; padding-bottom: 10px; flex-wrap: wrap; }
@@ -535,6 +537,12 @@
               <option value="1h">過去 1 小時動態</option>
               <option value="6h">過去 6 小時動態</option>
               <option value="24h">過去 24 小時歷史</option>
+            </select>
+
+            <label for="chartDateFilter"><span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span> 指定日期：</label>
+            <select id="chartDateFilter" onchange="renderCharts()">
+              <option value="all">所有日期</option>
+              <!-- 選項由 app.js updateDateFilter() 動態填入 -->
             </select>
           </div>
 

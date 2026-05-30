@@ -90,45 +90,67 @@ function switchChartTab(tabId, btnElement) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// [修正] 時間序列標籤格式化
-// 原本：d.timestamp.split(' ')[1]  → 只顯示時間，跨日時無從分辨
-// 現在：
-//   - 同一天的後續點：只顯示 HH:MM:SS
-//   - 每天第一筆 (或整筆資料第一筆)：顯示 MM/DD HH:MM:SS
-// 這樣 X 軸既標示跨日邊界，又不在每個刻度都印完整日期造成擁擠。
+// [新增] 日期篩選下拉選單動態填充
+// 從 globalData 提取所有不重複日期，依序加入 #chartDateFilter
+// ─────────────────────────────────────────────────────────────
+function updateDateFilter(data) {
+  const dateSelect = document.getElementById('chartDateFilter');
+  if (!dateSelect) return;
+
+  // 提取所有不重複、格式正確的日期字串 (e.g. "2026-05-29")
+  const uniqueDates = [...new Set(
+    data
+      .map(d => d.timestamp ? d.timestamp.trim().split(/\s+/)[0] : null)
+      .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+  )].sort();
+
+  // 記住目前選擇，重建後盡量還原
+  const prevValue = dateSelect.value;
+
+  dateSelect.innerHTML = '<option value="all">所有日期</option>';
+  uniqueDates.forEach(date => {
+    const opt = document.createElement('option');
+    opt.value = date;
+    // "2026-05-29" → "05/29 (2026)"
+    const [year, month, day] = date.split('-');
+    opt.textContent = `${month}/${day} (${year})`;
+    dateSelect.appendChild(opt);
+  });
+
+  // 若先前的選擇仍在新資料中則保留，否則回到「所有日期」
+  if ([...dateSelect.options].some(o => o.value === prevValue)) {
+    dateSelect.value = prevValue;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 時間序列標籤格式化
+// 同一天只顯示時間；跨日第一筆加上 MM/DD 前綴
 // ─────────────────────────────────────────────────────────────
 function formatTrendLabel(timestamp, prevTimestamp) {
   if (!timestamp) return '';
-
-  // 支援 "2026-05-29 0:43:00" 或純時間字串兩種格式
   const parts = timestamp.trim().split(/\s+/);
-  const datePart = parts.length >= 2 ? parts[0] : '';   // "2026-05-29"
-  const timePart = parts.length >= 2 ? parts[1] : parts[0]; // "0:43:00"
-
-  if (!datePart) return timePart; // 無日期資訊時原樣顯示
-
-  // 取前一筆的日期部分做比較
+  const datePart = parts.length >= 2 ? parts[0] : '';
+  const timePart = parts.length >= 2 ? parts[1] : parts[0];
+  if (!datePart) return timePart;
   const prevParts = prevTimestamp ? prevTimestamp.trim().split(/\s+/) : [];
   const prevDatePart = prevParts.length >= 2 ? prevParts[0] : null;
-
   if (prevDatePart === datePart) {
-    // 同一天：只顯示時間
     return timePart;
   } else {
-    // 跨日或第一筆：顯示 MM/DD 時:分:秒
-    // 把 "2026-05-29" → "05/29"，去掉年份節省空間
     const dateShort = datePart.replace(/^\d{4}-/, '').replace('-', '/');
     return `${dateShort} ${timePart}`;
   }
 }
 
-// === 圖表渲染主函式 (含縮放與時段篩選) ===
+// === 圖表渲染主函式 ===
 function renderCharts() {
   if (globalData.length === 0) return;
 
+  // ── 1. PM2.5 濃度篩選 ──
   const filterElement = document.getElementById('pm25TrendFilter');
   const filterValue = filterElement ? filterElement.value : 'all';
-  
+
   let trendData = globalData;
   if (filterValue === 'warning') {
     trendData = globalData.filter(d => d.pm25 >= 35.5);
@@ -136,21 +158,45 @@ function renderCharts() {
     trendData = globalData.filter(d => d.pm25 >= 54.5);
   }
 
-  const timeFilterElement = document.getElementById('chartTimeRangeFilter');
-  const timeFilterValue = timeFilterElement ? timeFilterElement.value : 'all';
-  
-  if (timeFilterValue !== 'all') {
-    let pointsToKeep = trendData.length;
-    if (timeFilterValue === '1h') pointsToKeep = 360; 
-    else if (timeFilterValue === '6h') pointsToKeep = 2160; 
-    else if (timeFilterValue === '24h') pointsToKeep = 8640; 
-    
-    if (trendData.length > pointsToKeep) {
-      trendData = trendData.slice(trendData.length - pointsToKeep);
+  // ── 2. 日期篩選 (新增) ──
+  // 選定特定日期時，時段篩選（1h/6h/24h）自動停用，因為範圍已限縮為單日
+  const dateFilterEl  = document.getElementById('chartDateFilter');
+  const timeFilterEl  = document.getElementById('chartTimeRangeFilter');
+  const dateFilterValue = dateFilterEl ? dateFilterEl.value : 'all';
+  const timeFilterValue = timeFilterEl ? timeFilterEl.value : 'all';
+
+  if (dateFilterValue !== 'all') {
+    // 僅保留該日資料
+    trendData = trendData.filter(d => {
+      if (!d.timestamp) return false;
+      return d.timestamp.trim().split(/\s+/)[0] === dateFilterValue;
+    });
+    // 停用時段篩選，避免誤導（選特定日期後「最近 1 小時」無意義）
+    if (timeFilterEl) {
+      timeFilterEl.disabled = true;
+      timeFilterEl.title = '已選擇特定日期，時段篩選暫停';
+    }
+  } else {
+    // 恢復時段篩選
+    if (timeFilterEl) {
+      timeFilterEl.disabled = false;
+      timeFilterEl.title = '';
+    }
+
+    // ── 3. 時段篩選（僅在「所有日期」時生效）──
+    if (timeFilterValue !== 'all') {
+      let pointsToKeep = trendData.length;
+      if (timeFilterValue === '1h')  pointsToKeep = 360;
+      else if (timeFilterValue === '6h')  pointsToKeep = 2160;
+      else if (timeFilterValue === '24h') pointsToKeep = 8640;
+
+      if (trendData.length > pointsToKeep) {
+        trendData = trendData.slice(trendData.length - pointsToKeep);
+      }
     }
   }
 
-  // [修正] 使用 formatTrendLabel，傳入當前與前一筆的 timestamp 做跨日比較
+  // ── 4. 標籤格式化（含跨日標示）──
   const labels = trendData.map((d, i) =>
     formatTrendLabel(
       d.timestamp,
@@ -159,6 +205,7 @@ function renderCharts() {
   );
   const pm25Values = trendData.map(d => d.pm25);
 
+  // ── 5. 圓餅圖統計（永遠基於 globalData，不受篩選影響）──
   const statusCounts = { '良好': 0, '普通': 0, '對敏感族群不健康': 0, '對所有族群不健康': 0, '非常不健康': 0, '危害': 0 };
   const statusColors = ['#00e400', '#ffff00', '#ff7e00', '#ff0000', '#8f3f97', '#7e0023'];
   globalData.forEach(d => {
@@ -195,10 +242,7 @@ function renderCharts() {
           title: { display: true, text: 'PM2.5 濃度時間趨勢 (可使用滾輪縮放與滑鼠拖曳平移)', font: { size: 16 } },
           datalabels: { display: false },
           zoom: {
-            pan: {
-              enabled: true,
-              mode: 'x',
-            },
+            pan: { enabled: true, mode: 'x' },
             zoom: {
               wheel: { enabled: true },
               pinch: { enabled: true },
@@ -214,9 +258,7 @@ function renderCharts() {
               minRotation: 0
             }
           },
-          y: {
-            suggestedMax: 60 
-          }
+          y: { suggestedMax: 60 }
         }
       }
     });
@@ -243,11 +285,9 @@ function renderCharts() {
             textStrokeWidth: 3,
             formatter: (value, ctx) => {
               let sum = 0;
-              let dataArr = ctx.chart.data.datasets[0].data;
-              dataArr.map(data => { sum += data; });
+              ctx.chart.data.datasets[0].data.forEach(v => { sum += v; });
               if (value === 0) return null;
-              let percentage = (value * 100 / sum).toFixed(1) + "%";
-              return percentage;
+              return (value * 100 / sum).toFixed(1) + '%';
             }
           }
         } 
@@ -268,6 +308,9 @@ function fetchData(isAuto = false) {
       globalData = results.data.filter(row => row.latitude && row.longitude && row.pm25 !== undefined);
       
       document.getElementById('data-status').innerText = `共讀取 ${globalData.length} 筆資料 (最後更新: ${new Date().toLocaleTimeString()})`;
+
+      // [新增] 每次資料刷新後重建日期選單
+      updateDateFilter(globalData);
 
       const tableBody = document.getElementById('data-table-body');
       tableBody.innerHTML = '';
