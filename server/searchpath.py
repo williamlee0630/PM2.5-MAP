@@ -306,11 +306,17 @@ async def calculate_health_routes(request: Request, payload: HealthRoutingReques
             return_distance=False,
         )
 
-        if len(indices_list) > 0:
-            unique_indices = np.unique(np.concatenate(indices_list))
+        # ─────────────────────────────────────────────────────────────
+        # [Bug2 修正] sklearn BallTree.query_radius 在感測器稀疏區域會
+        # 回傳大量空 ndarray，直接 np.concatenate 會 ValueError。
+        # 改為先過濾空陣列再合併，並明確指定 dtype=int 避免型別歧義。
+        # ─────────────────────────────────────────────────────────────
+        non_empty_indices = [idx for idx in indices_list if idx.size > 0]
+        if non_empty_indices:
+            unique_indices = np.unique(np.concatenate(non_empty_indices))
             unique_indices = unique_indices[unique_indices < len(sensor_pm25_values)]
         else:
-            unique_indices = np.array([])
+            unique_indices = np.array([], dtype=int)
 
         # [修正⑥] 加入 data_coverage 欄位，讓前端能區分「無資料路線」與「真實低污染路線」
         if unique_indices.size > 0:

@@ -615,7 +615,7 @@
     // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
     // [修正⑨] 同時保存座標資料以供繪圖，不再放入 payload 送後端
     let currentRouteLayers = [];
-    let pendingRouteCoords = {}; // { route_id: [[lat,lon], ...] }
+    let pendingRouteCoords = {}; // { routeKey: [[lat,lon], ...] }
 
     // ★ 1. 將地址文字轉換為經緯度 (直接對接 Render 伺服器)
     async function geocodeAddress(address) {
@@ -672,18 +672,28 @@
 
         const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'cycling' ? '🚲' : '🚶');
 
-        // [修正③] coordinates 改為後端所需的 {lat, lon} 物件格式
-        // [修正⑧] 移除 original_geojson，座標改存於 pendingRouteCoords 供本地繪圖
+        // ─────────────────────────────────────────────────────────────
+        // [Bug1 修正] routeId 含 emoji 會因 Unicode 正規化差異導致
+        // pendingRouteCoords lookup 時 key 不吻合、地圖線不畫出。
+        // 解法：拆分為純 ASCII 的 routeKey（送後端 / 用於 lookup）
+        //       與含 emoji 的 routeDisplayName（僅供 UI 顯示）。
+        // ─────────────────────────────────────────────────────────────
+        const displayNames = {}; // routeKey → 顯示用文字（含 emoji）
         const payload = { routes: [] };
 
         osrmRoutes.forEach((route, index) => {
           const latLonPairs = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
-          const routeId = `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`;
 
-          pendingRouteCoords[routeId] = latLonPairs;
+          // routeKey：純 ASCII，作為 pendingRouteCoords 與 payload 的 key
+          const routeKey = `route_${index}`;
+          // routeDisplayName：含 emoji，僅用於 UI 卡片顯示
+          const routeDisplayName = `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`;
+
+          pendingRouteCoords[routeKey] = latLonPairs;
+          displayNames[routeKey] = routeDisplayName;
 
           payload.routes.push({
-            route_id: routeId,
+            route_id: routeKey, // 送後端的是純 ASCII key
             // [修正③] 轉為 {lat, lon} 物件陣列，符合後端 Pydantic schema
             coordinates: latLonPairs.map(([lat, lon]) => ({ lat, lon }))
           });
@@ -699,11 +709,19 @@
         const pyData = await pyRes.json();
 
         // [修正④] 統一排序邏輯：推薦路線排第一，搭配 appendChild 由上往下插入
-        // 不再依賴「兩個錯誤相消」的偶然正確
         const sortedResults = [...pyData.results].sort((a, b) => {
           if (a.is_ai_recommended === b.is_ai_recommended) return 0;
           return a.is_ai_recommended ? -1 : 1;
         });
+
+        // [Bug3 修正] OSRM 在短距離或特殊路網下可能只回傳 1 條路線，
+        // 此時無法比較，顯示提示讓使用者知悉。
+        if (sortedResults.length === 1) {
+          const notice = document.createElement('p');
+          notice.style.cssText = 'color:#5f6368; font-size:14px; margin-bottom:12px;';
+          notice.textContent = '⚠️ 此路段僅找到一條可用路線，無法進行替代比較';
+          wrapper.appendChild(notice);
+        }
 
         sortedResults.forEach(routeResult => {
           const isRec     = routeResult.is_ai_recommended;
@@ -711,9 +729,10 @@
           const scoreClass = isRec ? 'healthy' : '';
 
           // [修正①] 所有後端回傳值先經 escapeHtml() 處理，防止 XSS
-          const safeId   = escapeHtml(routeResult.route_id);
-          const safeAvg  = escapeHtml(routeResult.average_exposure_pm25);
-          const safePeak = escapeHtml(routeResult.peak_exposure_pm25);
+          // [Bug1 修正] safeId 從 displayNames 取顯示文字，而非直接用後端回傳的 ASCII key
+          const safeId    = escapeHtml(displayNames[routeResult.route_id] ?? routeResult.route_id);
+          const safeAvg   = escapeHtml(routeResult.average_exposure_pm25);
+          const safePeak  = escapeHtml(routeResult.peak_exposure_pm25);
           const safeCount = escapeHtml(routeResult.analyzed_points_count);
 
           // [修正⑦] data_coverage 為 "none" 時顯示估算警示
@@ -745,7 +764,8 @@
           // [修正④] 使用 appendChild，與排序方向一致（推薦在最上面）
           wrapper.appendChild(card);
 
-          // 在地圖上繪製路線（使用本地保存的座標，不依賴後端回傳）
+          // 在地圖上繪製路線
+          // [Bug1 修正] 改用純 ASCII routeKey 查詢 pendingRouteCoords，確保 lookup 一定命中
           const coordsForMap = pendingRouteCoords[routeResult.route_id];
           if (coordsForMap && typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
             const polyline = L.polyline(coordsForMap, {
