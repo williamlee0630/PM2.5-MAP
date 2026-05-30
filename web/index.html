@@ -124,6 +124,9 @@
     @keyframes marqueeRun { 0% { transform: translateX(0); } 100% { transform: translateX(-120%); } }
     .freshness-marquee:hover .marquee-content { animation-play-state: paused; }
 
+    /* [修正⑩] @keyframes spin 移至此處，不再動態注入 */
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
     /* 首頁與共同卡片樣式 */
     #view-home { text-align: center; }
     .hero-card { max-width: 800px; margin: 0 auto; }
@@ -169,6 +172,9 @@
     .route-result-info p { margin: 0; font-size: 14px; color: #5f6368; }
     .route-pm-score { font-size: 24px; font-weight: bold; color: #d93025; }
     .route-pm-score.healthy { color: #0f9d58; }
+
+    /* [修正⑦] data_coverage 警示樣式 */
+    .coverage-warning { font-size: 13px; color: #b06000; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 10px; margin-top: 8px; display: inline-block; }
 
     /* 環境快訊 (News) 頁面樣式 */
     .news-container { max-width: 900px; margin: 0 auto; text-align: left; }
@@ -287,7 +293,8 @@
     
     <div class="sidebar-section-title">數據與圖表</div>
     
-    <div class="menu-item" onclick="switchTab('map', this)"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></div>
+    <!-- [修正②] 加上固定 id，讓 switchTab 呼叫不再依賴字串拼接選取器 -->
+    <div class="menu-item" id="nav-map" onclick="switchTab('map', this)"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></div>
     <div class="menu-item" onclick="switchTab('data', this)"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></div>
     <div class="menu-item" id="nav-charts" onclick="switchTab('charts', this)"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></div>
 
@@ -388,10 +395,11 @@
           </div>
           <div class="route-input-field" style="flex: 0 0 100%; margin-top: 12px;">
             <label><span class="material-symbols-outlined" style="font-size:18px; color:#fbbc04;">commute</span> 選擇交通方式</label>
+            <!-- [修正⑤] OSRM profile 值：bike → cycling、foot → walking -->
             <select id="route-mode" style="padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; background: #fff; cursor: pointer;">
               <option value="driving">🚗 汽 / 機車 (優先走主要幹道)</option>
-              <option value="bike">🚲 自行車 (優先走河濱或單車道)</option>
-              <option value="foot">🚶 步行 (允許穿越巷弄與人行道)</option>
+              <option value="cycling">🚲 自行車 (優先走河濱或單車道)</option>
+              <option value="walking">🚶 步行 (允許穿越巷弄與人行道)</option>
             </select>
           </div>
         </div>
@@ -402,9 +410,7 @@
 
         <div class="route-results-area" id="route-results-container">
           <h3 style="font-size: 18px; margin-bottom: 16px; color: #1f1f1f;">運算完成！為您推薦以下路線：</h3>
-          
-          <div id="route-cards-wrapper">
-            </div>
+          <div id="route-cards-wrapper"></div>
         </div>
 
       </div>
@@ -599,24 +605,31 @@
   <script src="js/app.js"></script>
 
   <script>
+    // [修正①] XSS 防護用工具函式：將字串中的 HTML 特殊字符轉義
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(String(str ?? '')));
+      return div.innerHTML;
+    }
+
     // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
+    // [修正⑨] 同時保存座標資料以供繪圖，不再放入 payload 送後端
     let currentRouteLayers = [];
+    let pendingRouteCoords = {}; // { route_id: [[lat,lon], ...] }
 
     // ★ 1. 將地址文字轉換為經緯度 (直接對接 Render 伺服器)
     async function geocodeAddress(address) {
       const url = `https://pm2-5-map.onrender.com/api/geocode?q=${encodeURIComponent(address)}`;
       const res = await fetch(url);
-      
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.detail || `找不到地址：${address}`);
       }
-      
-      const data = await res.json();
-      return data; 
+      return await res.json();
     }
 
     // ★ 2. 獲取真實導航路徑
+    // [修正⑤] OSRM mode 值已在 <select> 修正，此處直接透傳即可
     async function getOSRMRoute(startCoord, endCoord, mode = 'driving') {
       const url = `https://router.project-osrm.org/route/v1/${mode}/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
       const res = await fetch(url);
@@ -631,9 +644,9 @@
       const resultsContainer = document.getElementById('route-results-container');
       const wrapper = document.getElementById('route-cards-wrapper');
       
-      const startAddress = document.getElementById('route-start').value;
-      const endAddress = document.getElementById('route-end').value;
-      const routeMode = document.getElementById('route-mode').value; 
+      const startAddress = document.getElementById('route-start').value.trim();
+      const endAddress   = document.getElementById('route-end').value.trim();
+      const routeMode    = document.getElementById('route-mode').value;
 
       if (!startAddress || !endAddress) {
         alert("請輸入完整的起點與目的地！");
@@ -644,22 +657,35 @@
       btn.innerHTML = `<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span> 地理編碼與空間運算中...`;
       resultsContainer.classList.remove('active');
 
+      // [修正⑥] 提前清除舊路線圖層，避免等待 Python API 期間殘留上次結果
+      currentRouteLayers.forEach(layer => {
+        if (typeof map !== 'undefined' && map) map.removeLayer(layer);
+      });
+      currentRouteLayers = [];
+      pendingRouteCoords = {};
+      wrapper.innerHTML = '';
+
       try {
         const startCoord = await geocodeAddress(startAddress);
-        const endCoord = await geocodeAddress(endAddress);
-
+        const endCoord   = await geocodeAddress(endAddress);
         const osrmRoutes = await getOSRMRoute(startCoord, endCoord, routeMode);
 
+        const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'cycling' ? '🚲' : '🚶');
+
+        // [修正③] coordinates 改為後端所需的 {lat, lon} 物件格式
+        // [修正⑧] 移除 original_geojson，座標改存於 pendingRouteCoords 供本地繪圖
         const payload = { routes: [] };
-        
-        const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'bike' ? '🚲' : '🚶');
 
         osrmRoutes.forEach((route, index) => {
-          const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+          const latLonPairs = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
+          const routeId = `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`;
+
+          pendingRouteCoords[routeId] = latLonPairs;
+
           payload.routes.push({
-            route_id: `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`,
-            coordinates: coords,
-            original_geojson: route.geometry.coordinates
+            route_id: routeId,
+            // [修正③] 轉為 {lat, lon} 物件陣列，符合後端 Pydantic schema
+            coordinates: latLonPairs.map(([lat, lon]) => ({ lat, lon }))
           });
         });
 
@@ -669,55 +695,77 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-
         if (!pyRes.ok) throw new Error("Python 後端伺服器無回應 (請確認伺服器已喚醒)");
         const pyData = await pyRes.json();
 
-        currentRouteLayers.forEach(layer => map.removeLayer(layer));
-        currentRouteLayers = [];
-        wrapper.innerHTML = ''; 
-        
-        const sortedResults = pyData.results.sort((a, b) => a.is_ai_recommended ? 1 : -1);
+        // [修正④] 統一排序邏輯：推薦路線排第一，搭配 appendChild 由上往下插入
+        // 不再依賴「兩個錯誤相消」的偶然正確
+        const sortedResults = [...pyData.results].sort((a, b) => {
+          if (a.is_ai_recommended === b.is_ai_recommended) return 0;
+          return a.is_ai_recommended ? -1 : 1;
+        });
 
         sortedResults.forEach(routeResult => {
-          const isRec = routeResult.is_ai_recommended;
+          const isRec     = routeResult.is_ai_recommended;
+          const coverage  = routeResult.data_coverage ?? 'unknown';
           const scoreClass = isRec ? 'healthy' : '';
-          
-          const cardHtml = `
-            <div class="route-result-card ${isRec ? 'recommended' : ''}" style="cursor: pointer;" onclick="switchTab('map', document.querySelector('.menu-item[onclick*=\\'map\\']'))">
-              <div class="route-result-info">
-                <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${routeResult.route_id}</h4>
-                <p>沿途比對感測點：${routeResult.analyzed_points_count} 個 ｜ 最高：${routeResult.peak_exposure_pm25} µg/m³</p>
-              </div>
-              <div style="text-align: right;">
-                <span style="font-size: 13px; color: #5f6368; display: block;">預計平均曝露值</span>
-                <span class="route-pm-score ${scoreClass}">${routeResult.average_exposure_pm25} <small style="font-size: 14px; color:#5f6368; font-weight:normal;">µg/m³</small></span>
-              </div>
+
+          // [修正①] 所有後端回傳值先經 escapeHtml() 處理，防止 XSS
+          const safeId   = escapeHtml(routeResult.route_id);
+          const safeAvg  = escapeHtml(routeResult.average_exposure_pm25);
+          const safePeak = escapeHtml(routeResult.peak_exposure_pm25);
+          const safeCount = escapeHtml(routeResult.analyzed_points_count);
+
+          // [修正⑦] data_coverage 為 "none" 時顯示估算警示
+          const coverageHtml = (coverage === 'none')
+            ? `<span class="coverage-warning">⚠️ 此路線無感測器覆蓋，數值為全區估算值</span>`
+            : (coverage === 'sparse'
+              ? `<span class="coverage-warning">⚠️ 感測器覆蓋稀疏，數值僅供參考</span>`
+              : '');
+
+          // [修正②] 改用固定 id 的 nav-map 元素，不再拼接含引號的選取器字串
+          const card = document.createElement('div');
+          card.className = `route-result-card${isRec ? ' recommended' : ''}`;
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', () => switchTab('map', document.getElementById('nav-map')));
+
+          // 用 innerHTML 插入已消毒的字串（所有動態值都已過 escapeHtml）
+          card.innerHTML = `
+            <div class="route-result-info">
+              <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${safeId}</h4>
+              <p>沿途比對感測點：${safeCount} 個 ｜ 最高：${safePeak} µg/m³</p>
+              ${coverageHtml}
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 13px; color: #5f6368; display: block;">預計平均曝露值</span>
+              <span class="route-pm-score ${scoreClass}">${safeAvg} <small style="font-size: 14px; color:#5f6368; font-weight:normal;">µg/m³</small></span>
             </div>
           `;
-          wrapper.insertAdjacentHTML('afterbegin', cardHtml); 
 
-          const originalRoute = payload.routes.find(r => r.route_id === routeResult.route_id);
-          if (originalRoute && typeof L !== 'undefined' && map) {
-            const polyline = L.polyline(originalRoute.coordinates, {
-              color: isRec ? '#0f9d58' : '#80868b', 
-              weight: isRec ? 7 : 4,
-              opacity: isRec ? 0.9 : 0.6,
+          // [修正④] 使用 appendChild，與排序方向一致（推薦在最上面）
+          wrapper.appendChild(card);
+
+          // 在地圖上繪製路線（使用本地保存的座標，不依賴後端回傳）
+          const coordsForMap = pendingRouteCoords[routeResult.route_id];
+          if (coordsForMap && typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+            const polyline = L.polyline(coordsForMap, {
+              color:     isRec ? '#0f9d58' : '#80868b',
+              weight:    isRec ? 7 : 4,
+              opacity:   isRec ? 0.9 : 0.6,
               dashArray: isRec ? null : '10, 10'
             }).addTo(map);
-            
+
             if (isRec) {
-              polyline.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${routeResult.average_exposure_pm25} µg/m³`).openPopup();
-              map.fitBounds(polyline.getBounds(), { padding: [50, 50] }); 
+              polyline.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${safeAvg} µg/m³`).openPopup();
+              map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
             }
             currentRouteLayers.push(polyline);
           }
         });
 
         resultsContainer.classList.add('active');
-        
         alert("運算完成！已在地圖上為您標示推薦的最健康路線。");
-        switchTab('map', document.querySelector('.menu-item[onclick*=\'map\']'));
+        switchTab('map', document.getElementById('nav-map'));
 
       } catch (err) {
         alert("發生錯誤：" + err.message);
@@ -727,11 +775,6 @@
         btn.innerHTML = `<span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線`;
       }
     }
-
-    // 加入旋轉動畫給 loading 狀態
-    const style = document.createElement('style');
-    style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
-    document.head.appendChild(style);
   </script>
 
 </body>
