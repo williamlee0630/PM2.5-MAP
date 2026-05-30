@@ -25,7 +25,10 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 # 建立全局 HTTP Client 以重複利用 TCP 連線
-http_client = httpx.AsyncClient(timeout=10.0)
+# [修正] follow_redirects=True：Google Sheets export 會先回 307 跳轉至
+#        googleusercontent.com，httpx 預設不跟隨重定向，加此參數後才能
+#        正確抓到 CSV 內容。
+http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
 # FastAPI 生命週期管理 (確保關閉時釋放資源)
 @asynccontextmanager
