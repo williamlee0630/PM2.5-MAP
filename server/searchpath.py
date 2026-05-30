@@ -46,10 +46,17 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # ─────────────────────────────────────────────
 # CORS 設定
 # ─────────────────────────────────────────────
+# 建立一個允許名單，把你的前端網址放進去（注意：網址最後面不要加斜線 /）
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://pm-2-5-map.vercel.app",  # 這是你截圖中的 Vercel 網址
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # TODO: 上線前請限縮為指定網域
-    allow_credentials=False,
+    allow_origins=origins,     # 改用明確的名單
+    allow_credentials=True,    # 改為 True 通常能解決更多預檢請求 (Preflight) 的問題
     allow_methods=["*"],
     allow_headers=["*"],
 )
