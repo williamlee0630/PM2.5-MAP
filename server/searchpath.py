@@ -20,7 +20,6 @@ from slowapi.util import get_remote_address
 # ─────────────────────────────────────────────
 # 系統設定與 Redis 初始化
 # ─────────────────────────────────────────────
-# TODO: 請在 Vercel/Render 的環境變數中設定你的 Upstash Redis URL
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
@@ -46,17 +45,16 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # ─────────────────────────────────────────────
 # CORS 設定
 # ─────────────────────────────────────────────
-# 建立一個允許名單，把你的前端網址放進去（注意：網址最後面不要加斜線 /）
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://pm-2-5-map.vercel.app",  # 這是你截圖中的 Vercel 網址
+    "https://pm-2-5-map.vercel.app", 
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,     # 改用明確的名單
-    allow_credentials=True,    # 改為 True 通常能解決更多預檢請求 (Preflight) 的問題
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -83,7 +81,7 @@ class HealthRoutingRequest(BaseModel):
     routes: List[RouteGeometry]
 
 # ─────────────────────────────────────────────
-# 本地記憶體快取 (專放無法存入 Redis 的 Python 物件)
+# 本地記憶體快取
 # ─────────────────────────────────────────────
 _local_cache: dict = {
     "df": None,
@@ -92,50 +90,11 @@ _local_cache: dict = {
 }
 
 # ─────────────────────────────────────────────
-# 地理編碼備援函式
-# ─────────────────────────────────────────────
-async def _try_arcgis(q: str) -> dict | None:
-    r = await http_client.get(
-        "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates",
-        params={"f": "json", "singleLine": q, "maxLocations": 1},
-    )
-    r.raise_for_status()
-    candidates = r.json().get("candidates", [])
-    if not candidates: return None
-    return {"lat": candidates[0]["location"]["y"], "lon": candidates[0]["location"]["x"]}
-
-async def _try_photon(q: str) -> dict | None:
-    r = await http_client.get(
-        "https://photon.komoot.io/api/",
-        params={"q": q, "limit": 1, "lang": "zh"},
-    )
-    r.raise_for_status()
-    features = r.json().get("features", [])
-    if not features: return None
-    coords = features[0]["geometry"]["coordinates"]
-    return {"lat": coords[1], "lon": coords[0]}
-
-async def _try_nominatim(q: str) -> dict | None:
-    r = await http_client.get(
-        "https://nominatim.openstreetmap.org/search",
-        headers={
-            "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)",
-            "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-        },
-        params={"format": "json", "q": q, "countrycodes": "tw", "limit": 1},
-    )
-    r.raise_for_status()
-    data = r.json()
-    if not data: return None
-    return {"lat": float(data[0]["lat"]), "lon": float(data[0]["lon"])}
-
-# ─────────────────────────────────────────────
 # 感測器資料抓取與快取 (雙層快取架構)
 # ─────────────────────────────────────────────
 async def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, BallTree]:
     now = datetime.now()
     
-    # 1. 檢查本地記憶體是否有有效的 BallTree (應對同一個 Instance 短時間內的密集請求)
     if (
         _local_cache["df"] is not None
         and _local_cache["updated_at"] is not None
@@ -143,24 +102,18 @@ async def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, BallTree]:
     ):
         return _local_cache["df"], _local_cache["tree"]
 
-    # 2. 本地沒有或過期，去 Redis 找 CSV 原始資料
     csv_data = await redis_client.get("sensor_data_csv")
     
-    # 3. Redis 裡沒有，代表全網域都過期了，真正去戳 Google Sheets
     if not csv_data:
         try:
             response = await http_client.get(CSV_URL)
             response.raise_for_status()
             csv_data = response.text
-            
-            # 將抓下來的 CSV 存入 Redis，設定 300 秒 (5分鐘) 過期
             await redis_client.set("sensor_data_csv", csv_data, ex=300)
         except Exception as e:
-            # 若 Google Sheets 掛掉，嘗試拿 Redis 裡上次殘留的舊資料 (如果有手動設定備份)
             print(f"從 Google Sheets 獲取失敗: {str(e)}")
             raise HTTPException(status_code=502, detail="無法同步感測網路資料")
 
-    # 解析資料並建構 BallTree
     df = pd.read_csv(io.StringIO(csv_data))
     df = df.dropna(subset=["latitude", "longitude", "pm25"])
 
@@ -170,7 +123,6 @@ async def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, BallTree]:
     coords_rad = np.radians(df[["latitude", "longitude"]].values)
     spatial_tree = BallTree(coords_rad, metric="haversine")
 
-    # 更新本地記憶體
     _local_cache["df"] = df
     _local_cache["tree"] = spatial_tree
     _local_cache["updated_at"] = now
@@ -193,31 +145,42 @@ async def geocode_address(request: Request, q: str):
     query = q.strip()
     cache_key = f"geocode:{query}"
 
-    # 1. 優先查詢 Redis 快取
+    # 1. 優先查詢 Redis 快取，避免浪費 Google API 額度
     cached_result = await redis_client.get(cache_key)
     if cached_result:
-        return json.loads(cached_result) # 解析 JSON 字串後回傳
+        return json.loads(cached_result)
 
-    # 2. Redis 沒有，依序呼叫外部 API
-    errors_count = 0
-    providers = [_try_arcgis, _try_photon, _try_nominatim]
-    
-    for provider in providers:
-        try:
-            result = await provider(query)
-            if result:
-                # 查詢成功，存入 Redis，設定 86400 秒 (24小時) 過期
-                await redis_client.set(cache_key, json.dumps(result), ex=86400)
-                return result
-        except Exception as e:
-            print(f"{provider.__name__} 發生錯誤: {str(e)}")
-            errors_count += 1
-            continue
+    # 2. 確認是否設定 Google Maps API Key
+    GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not GOOGLE_MAPS_API_KEY:
+        raise HTTPException(status_code=500, detail="伺服器尚未設定 Google Maps API 金鑰")
 
-    if errors_count == len(providers):
-        raise HTTPException(status_code=502, detail="所有地理編碼服務暫時無回應")
-    else:
-        raise HTTPException(status_code=404, detail=f"地圖引擎找不到「{query}」")
+    # 3. 呼叫 Google Maps Geocoding API
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": query,
+        "key": GOOGLE_MAPS_API_KEY,
+        "language": "zh-TW",
+        "region": "tw"
+    }
+
+    try:
+        response = await http_client.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("status") == "OK" and len(data.get("results", [])) > 0:
+            location = data["results"][0]["geometry"]["location"]
+            result = {"lat": location["lat"], "lon": location["lng"]}
+            
+            # 查詢成功，存入 Redis，設定 86400 秒 (24小時) 過期
+            await redis_client.set(cache_key, json.dumps(result), ex=86400)
+            return result
+        else:
+            raise HTTPException(status_code=404, detail=f"地圖引擎找不到「{query}」")
+
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"連線至 Google 伺服器發生錯誤: {str(e)}")
 
 @app.post("/api/calculate-health-routes")
 async def calculate_health_routes(payload: HealthRoutingRequest):
