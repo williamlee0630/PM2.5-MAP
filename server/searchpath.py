@@ -185,7 +185,7 @@ def health_check():
     return {"status": "online", "message": "空污共犯 API 伺服器運作中！"}
 
 @app.get("/api/geocode")
-@limiter.limit("1/second")
+@limiter.limit("5/second")
 async def geocode_address(request: Request, q: str):
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="請提供查詢地址")
