@@ -1,10 +1,14 @@
 import io
+import json
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import List, Tuple
 
 import httpx
 import numpy as np
 import pandas as pd
+import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -14,11 +18,28 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 # ─────────────────────────────────────────────
+# 系統設定與 Redis 初始化
+# ─────────────────────────────────────────────
+# TODO: 請在 Vercel/Render 的環境變數中設定你的 Upstash Redis URL
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+
+# 建立全局 HTTP Client 以重複利用 TCP 連線
+http_client = httpx.AsyncClient(timeout=10.0)
+
+# FastAPI 生命週期管理 (確保關閉時釋放資源)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await http_client.aclose()
+    await redis_client.aclose()
+
+# ─────────────────────────────────────────────
 # 應用程式初始化
 # ─────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="空污共犯 - 健康路徑規劃子系統 API")
+app = FastAPI(title="空污共犯 - 健康路徑規劃子系統 API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -28,7 +49,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],       # TODO: 上線前請限縮為指定網域
-    allow_credentials=False,   # 與 allow_origins=["*"] 並存時必須為 False
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -41,9 +62,7 @@ CSV_URL = (
     "1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ/export?format=csv"
 )
 
-# 感測器搜尋半徑：0.01 弧度 ≈ 6.4 公里
 SEARCH_RADIUS_RADIANS = 0.01
-# 感測器資料快取有效期限
 CACHE_TTL = timedelta(minutes=5)
 
 # ─────────────────────────────────────────────
@@ -57,103 +76,99 @@ class HealthRoutingRequest(BaseModel):
     routes: List[RouteGeometry]
 
 # ─────────────────────────────────────────────
-# 感測器資料快取
+# 本地記憶體快取 (專放無法存入 Redis 的 Python 物件)
 # ─────────────────────────────────────────────
-_cache: dict = {
+_local_cache: dict = {
     "df": None,
     "tree": None,
     "updated_at": None,
 }
 
 # ─────────────────────────────────────────────
-# 地理編碼備援函式 (加入 ArcGIS 強大地標解析)
+# 地理編碼備援函式
 # ─────────────────────────────────────────────
-async def _try_arcgis(client: httpx.AsyncClient, q: str) -> dict | None:
-    """第一線服務：ArcGIS（對於台灣口語化地標、學校、捷運站解析能力極佳）"""
-    r = await client.get(
+async def _try_arcgis(q: str) -> dict | None:
+    r = await http_client.get(
         "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates",
         params={"f": "json", "singleLine": q, "maxLocations": 1},
-        timeout=10.0,
     )
     r.raise_for_status()
     candidates = r.json().get("candidates", [])
-    if not candidates:
-        return None
-    loc = candidates[0]["location"]
-    return {"lat": loc["y"], "lon": loc["x"]}
+    if not candidates: return None
+    return {"lat": candidates[0]["location"]["y"], "lon": candidates[0]["location"]["x"]}
 
-async def _try_photon(client: httpx.AsyncClient, q: str) -> dict | None:
-    """第二線服務：Photon（基於 OSM，對雲端伺服器 IP 限制較寬鬆）"""
-    r = await client.get(
+async def _try_photon(q: str) -> dict | None:
+    r = await http_client.get(
         "https://photon.komoot.io/api/",
         params={"q": q, "limit": 1, "lang": "zh"},
-        timeout=10.0,
     )
     r.raise_for_status()
     features = r.json().get("features", [])
-    if not features:
-        return None
+    if not features: return None
     coords = features[0]["geometry"]["coordinates"]
     return {"lat": coords[1], "lon": coords[0]}
 
-async def _try_nominatim(client: httpx.AsyncClient, q: str) -> dict | None:
-    """第三線服務：Nominatim"""
-    r = await client.get(
+async def _try_nominatim(q: str) -> dict | None:
+    r = await http_client.get(
         "https://nominatim.openstreetmap.org/search",
         headers={
             "User-Agent": "AirPollutionAccompliceProject/1.0 (contact@su.edu.tw)",
             "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
         },
         params={"format": "json", "q": q, "countrycodes": "tw", "limit": 1},
-        timeout=10.0,
     )
     r.raise_for_status()
     data = r.json()
-    if not data:
-        return None
+    if not data: return None
     return {"lat": float(data[0]["lat"]), "lon": float(data[0]["lon"])}
 
 # ─────────────────────────────────────────────
-# 感測器資料抓取與快取
+# 感測器資料抓取與快取 (雙層快取架構)
 # ─────────────────────────────────────────────
 async def fetch_sensor_data_and_build_tree() -> Tuple[pd.DataFrame, BallTree]:
     now = datetime.now()
+    
+    # 1. 檢查本地記憶體是否有有效的 BallTree (應對同一個 Instance 短時間內的密集請求)
     if (
-        _cache["df"] is not None
-        and _cache["updated_at"] is not None
-        and (now - _cache["updated_at"]) < CACHE_TTL
+        _local_cache["df"] is not None
+        and _local_cache["updated_at"] is not None
+        and (now - _local_cache["updated_at"]) < CACHE_TTL
     ):
-        return _cache["df"], _cache["tree"]
+        return _local_cache["df"], _local_cache["tree"]
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(CSV_URL)
+    # 2. 本地沒有或過期，去 Redis 找 CSV 原始資料
+    csv_data = await redis_client.get("sensor_data_csv")
+    
+    # 3. Redis 裡沒有，代表全網域都過期了，真正去戳 Google Sheets
+    if not csv_data:
+        try:
+            response = await http_client.get(CSV_URL)
             response.raise_for_status()
+            csv_data = response.text
+            
+            # 將抓下來的 CSV 存入 Redis，設定 300 秒 (5分鐘) 過期
+            await redis_client.set("sensor_data_csv", csv_data, ex=300)
+        except Exception as e:
+            # 若 Google Sheets 掛掉，嘗試拿 Redis 裡上次殘留的舊資料 (如果有手動設定備份)
+            print(f"從 Google Sheets 獲取失敗: {str(e)}")
+            raise HTTPException(status_code=502, detail="無法同步感測網路資料")
 
-        df = pd.read_csv(io.StringIO(response.text))
-        df = df.dropna(subset=["latitude", "longitude", "pm25"])
+    # 解析資料並建構 BallTree
+    df = pd.read_csv(io.StringIO(csv_data))
+    df = df.dropna(subset=["latitude", "longitude", "pm25"])
 
-        if df.empty:
-            raise ValueError("Google Sheets 內無有效感測數據")
+    if df.empty:
+        raise ValueError("資料來源內無有效感測數據")
 
-        coords_rad = np.radians(df[["latitude", "longitude"]].values)
-        spatial_tree = BallTree(coords_rad, metric="haversine")
+    coords_rad = np.radians(df[["latitude", "longitude"]].values)
+    spatial_tree = BallTree(coords_rad, metric="haversine")
 
-        _cache["df"] = df
-        _cache["tree"] = spatial_tree
-        _cache["updated_at"] = now
+    # 更新本地記憶體
+    _local_cache["df"] = df
+    _local_cache["tree"] = spatial_tree
+    _local_cache["updated_at"] = now
 
-        return df, spatial_tree
-
-    except httpx.HTTPStatusError as e:
-        print(f"Google Sheets 回應錯誤: {e.response.status_code}")
-        raise HTTPException(status_code=502, detail="無法同步感測網路資料，來源伺服器拒絕請求")
-    except httpx.TimeoutException:
-        print("Google Sheets 連線逾時")
-        raise HTTPException(status_code=504, detail="無法同步感測網路資料，連線逾時")
-    except Exception as e:
-        print(f"數據庫連線或建樹失敗: {str(e)}")
-        raise HTTPException(status_code=500, detail="無法即時同步感測網路數據樞紐")
+    return df, spatial_tree
 
 # ─────────────────────────────────────────────
 # 路由端點
@@ -167,30 +182,35 @@ def health_check():
 async def geocode_address(request: Request, q: str):
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="請提供查詢地址")
+    
+    query = q.strip()
+    cache_key = f"geocode:{query}"
 
+    # 1. 優先查詢 Redis 快取
+    cached_result = await redis_client.get(cache_key)
+    if cached_result:
+        return json.loads(cached_result) # 解析 JSON 字串後回傳
+
+    # 2. Redis 沒有，依序呼叫外部 API
     errors_count = 0
-    # 依序嘗試：ArcGIS -> Photon -> Nominatim
     providers = [_try_arcgis, _try_photon, _try_nominatim]
     
-    async with httpx.AsyncClient() as client:
-        for provider in providers:
-            try:
-                result = await provider(client, q.strip())
-                if result:
-                    return result
-                else:
-                    # 服務正常回應，但找不到該地點 (回傳 None)
-                    pass
-            except Exception as e:
-                print(f"{provider.__name__} 發生錯誤: {str(e)}")
-                errors_count += 1
-                continue
+    for provider in providers:
+        try:
+            result = await provider(query)
+            if result:
+                # 查詢成功，存入 Redis，設定 86400 秒 (24小時) 過期
+                await redis_client.set(cache_key, json.dumps(result), ex=86400)
+                return result
+        except Exception as e:
+            print(f"{provider.__name__} 發生錯誤: {str(e)}")
+            errors_count += 1
+            continue
 
-    # 判斷是「網路全掛」還是「真的找不到地點」
     if errors_count == len(providers):
-        raise HTTPException(status_code=502, detail="所有地理編碼服務暫時無回應，請稍後再試")
+        raise HTTPException(status_code=502, detail="所有地理編碼服務暫時無回應")
     else:
-        raise HTTPException(status_code=404, detail=f"地圖引擎找不到「{q}」，請嘗試輸入更完整的門牌地址或換個地標名稱")
+        raise HTTPException(status_code=404, detail=f"地圖引擎找不到「{query}」")
 
 @app.post("/api/calculate-health-routes")
 async def calculate_health_routes(payload: HealthRoutingRequest):
@@ -203,8 +223,7 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
     evaluated_results = []
 
     for route in payload.routes:
-        if not route.coordinates:
-            continue
+        if not route.coordinates: continue
 
         route_points = np.array(route.coordinates)
         route_points_rad = np.radians(route_points)
@@ -236,7 +255,6 @@ async def calculate_health_routes(payload: HealthRoutingRequest):
         })
 
     evaluated_results.sort(key=lambda x: x["average_exposure_pm25"])
-
     for i, res in enumerate(evaluated_results):
         res["is_ai_recommended"] = (i == 0)
 
