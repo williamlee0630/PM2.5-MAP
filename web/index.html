@@ -176,6 +176,16 @@
     /* [修正⑦] data_coverage 警示樣式 */
     .coverage-warning { font-size: 13px; color: #b06000; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 10px; margin-top: 8px; display: inline-block; }
 
+    /* 路線卡片：選取中狀態（藍色外框） */
+    .route-result-card { cursor: pointer; transition: box-shadow 0.2s, outline 0.15s; }
+    .route-result-card.selected { outline: 3px solid #1a73e8; outline-offset: -2px; background: #f0f6ff !important; }
+
+    /* 口罩健康建議提示框 */
+    .health-alert-mask { display: flex; align-items: flex-start; gap: 14px; background: #fff8e1; border: 1px solid #ffe082; border-left: 5px solid #f9a825; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+    .health-alert-mask .mask-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
+    .health-alert-mask strong { display: block; font-size: 15px; color: #5d4037; margin-bottom: 5px; }
+    .health-alert-mask p { margin: 0; font-size: 14px; color: #5d4037; line-height: 1.6; }
+
     /* 環境快訊 (News) 頁面樣式 */
     .news-container { max-width: 900px; margin: 0 auto; text-align: left; }
     .news-header-title { font-size: 26px; color: #1f1f1f; font-weight: bold; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #eaf1fd;}
@@ -620,10 +630,49 @@
       return div.innerHTML;
     }
 
-    // 全域變數：用來儲存畫在地圖上的導航路線，方便下次查詢時清除
-    // [修正⑨] 同時保存座標資料以供繪圖，不再放入 payload 送後端
-    let currentRouteLayers = [];
-    let pendingRouteCoords = {}; // { routeKey: [[lat,lon], ...] }
+    // ── 全域狀態 ─────────────────────────────────────────────────
+    // routePolylines : { routeKey → L.Polyline }，取代舊的陣列
+    //                  方便點擊卡片時反查並切換樣式
+    let routePolylines       = {};
+    let pendingRouteCoords   = {}; // { routeKey: [[lat,lon], ...] }
+    let selectedRouteId      = null;
+
+    // isRoutingInProgress：路線計算進行中時設為 true，
+    // app.js 的 setInterval 會跳過該次更新，避免搶資源
+    let isRoutingInProgress  = false;
+
+    // ── 路線選取函式（切換實線 / 虛線）──────────────────────────
+    function selectRoute(routeId) {
+      selectedRouteId = routeId;
+
+      // 更新所有 Polyline 樣式
+      Object.entries(routePolylines).forEach(([id, poly]) => {
+        const isSelected = (id === routeId);
+        const isRec      = poly._pmIsRecommended;
+        poly.setStyle({
+          // 選取中：實線；未選取：虛線
+          dashArray : isSelected ? null : '10, 10',
+          weight    : isSelected ? 7 : 4,
+          opacity   : isSelected ? 0.95 : 0.45,
+          // 顏色：推薦路線選取=綠、非推薦選取=藍、未選取=灰
+          color: isSelected
+            ? (isRec ? '#0f9d58' : '#1a73e8')
+            : '#80868b',
+        });
+        if (isSelected) poly.bringToFront();
+      });
+
+      // 更新卡片外框
+      document.querySelectorAll('.route-result-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.routeId === routeId);
+      });
+
+      // 飛向選取路線的範圍
+      const poly = routePolylines[routeId];
+      if (poly && typeof map !== 'undefined') {
+        map.fitBounds(poly.getBounds(), { padding: [50, 50] });
+      }
+    }
 
     // ★ 1. 將地址文字轉換為經緯度 (直接對接 Render 伺服器)
     async function geocodeAddress(address) {
@@ -637,7 +686,6 @@
     }
 
     // ★ 2. 獲取真實導航路徑
-    // [修正⑤] OSRM mode 值已在 <select> 修正，此處直接透傳即可
     async function getOSRMRoute(startCoord, endCoord, mode = 'driving') {
       const url = `https://router.project-osrm.org/route/v1/${mode}/${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}?geometries=geojson&alternatives=true`;
       const res = await fetch(url);
@@ -648,10 +696,10 @@
 
     // ★ 3. 處理呼叫 Python API 與前端互動的主邏輯
     async function callPythonRoutingAPI() {
-      const btn = document.getElementById('btn-calc-route');
+      const btn              = document.getElementById('btn-calc-route');
       const resultsContainer = document.getElementById('route-results-container');
-      const wrapper = document.getElementById('route-cards-wrapper');
-      
+      const wrapper          = document.getElementById('route-cards-wrapper');
+
       const startAddress = document.getElementById('route-start').value.trim();
       const endAddress   = document.getElementById('route-end').value.trim();
       const routeMode    = document.getElementById('route-mode').value;
@@ -665,13 +713,17 @@
       btn.innerHTML = `<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span> 地理編碼與空間運算中...`;
       resultsContainer.classList.remove('active');
 
-      // [修正⑥] 提前清除舊路線圖層，避免等待 Python API 期間殘留上次結果
-      currentRouteLayers.forEach(layer => {
-        if (typeof map !== 'undefined' && map) map.removeLayer(layer);
+      // ── 暫停 app.js 的自動資料更新，避免搶佔網路與渲染資源 ──
+      isRoutingInProgress = true;
+
+      // 清除上次路線
+      Object.values(routePolylines).forEach(poly => {
+        if (typeof map !== 'undefined' && map) map.removeLayer(poly);
       });
-      currentRouteLayers = [];
+      routePolylines     = {};
       pendingRouteCoords = {};
-      wrapper.innerHTML = '';
+      selectedRouteId    = null;
+      wrapper.innerHTML  = '';
 
       try {
         const startCoord = await geocodeAddress(startAddress);
@@ -680,34 +732,24 @@
 
         const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'cycling' ? '🚲' : '🚶');
 
-        // ─────────────────────────────────────────────────────────────
-        // [Bug1 修正] routeId 含 emoji 會因 Unicode 正規化差異導致
-        // pendingRouteCoords lookup 時 key 不吻合、地圖線不畫出。
-        // 解法：拆分為純 ASCII 的 routeKey（送後端 / 用於 lookup）
-        //       與含 emoji 的 routeDisplayName（僅供 UI 顯示）。
-        // ─────────────────────────────────────────────────────────────
-        const displayNames = {}; // routeKey → 顯示用文字（含 emoji）
+        // [Bug1 修正] 純 ASCII routeKey 送後端；displayNames 僅供 UI 顯示
+        const displayNames = {};
         const payload = { routes: [] };
 
         osrmRoutes.forEach((route, index) => {
-          const latLonPairs = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
-
-          // routeKey：純 ASCII，作為 pendingRouteCoords 與 payload 的 key
-          const routeKey = `route_${index}`;
-          // routeDisplayName：含 emoji，僅用於 UI 卡片顯示
+          const latLonPairs      = route.geometry.coordinates.map(c => [c[1], c[0]]);
+          const routeKey         = `route_${index}`;
           const routeDisplayName = `${modeIcon} 選項 ${index + 1} (${(route.distance / 1000).toFixed(1)} km)`;
 
           pendingRouteCoords[routeKey] = latLonPairs;
-          displayNames[routeKey] = routeDisplayName;
+          displayNames[routeKey]       = routeDisplayName;
 
           payload.routes.push({
-            route_id: routeKey, // 送後端的是純 ASCII key
-            // [修正③] 轉為 {lat, lon} 物件陣列，符合後端 Pydantic schema
+            route_id: routeKey,
             coordinates: latLonPairs.map(([lat, lon]) => ({ lat, lon }))
           });
         });
 
-        // 送給 Render 雲端 Python 進行運算
         const pyRes = await fetch('https://pm2-5-map.onrender.com/api/calculate-health-routes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -716,14 +758,12 @@
         if (!pyRes.ok) throw new Error("Python 後端伺服器無回應 (請確認伺服器已喚醒)");
         const pyData = await pyRes.json();
 
-        // [修正④] 統一排序邏輯：推薦路線排第一，搭配 appendChild 由上往下插入
         const sortedResults = [...pyData.results].sort((a, b) => {
           if (a.is_ai_recommended === b.is_ai_recommended) return 0;
           return a.is_ai_recommended ? -1 : 1;
         });
 
-        // [Bug3 修正] OSRM 在短距離或特殊路網下可能只回傳 1 條路線，
-        // 此時無法比較，顯示提示讓使用者知悉。
+        // ── 單一路線提示 ───────────────────────────────────────
         if (sortedResults.length === 1) {
           const notice = document.createElement('p');
           notice.style.cssText = 'color:#5f6368; font-size:14px; margin-bottom:12px;';
@@ -731,32 +771,62 @@
           wrapper.appendChild(notice);
         }
 
+        // ── 口罩健康提醒（依推薦路線的峰值 PM2.5 決定警示等級）──
+        const recRoute = sortedResults.find(r => r.is_ai_recommended);
+        if (recRoute) {
+          const peak = parseFloat(recRoute.peak_exposure_pm25);
+          let maskHtml = '';
+          if (peak >= 54.5) {
+            maskHtml = `
+              <div class="health-alert-mask">
+                <span class="mask-icon">😷</span>
+                <div>
+                  <strong>⚠️ 強烈建議所有人佩戴口罩或 N95</strong>
+                  <p>推薦路線沿途最高 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對所有族群不健康）</strong>，
+                  長時間暴露對心肺系統有明顯負擔，出發前請務必佩戴防護口罩。</p>
+                </div>
+              </div>`;
+          } else if (peak >= 35.5) {
+            maskHtml = `
+              <div class="health-alert-mask">
+                <span class="mask-icon">😷</span>
+                <div>
+                  <strong>建議敏感族群佩戴口罩</strong>
+                  <p>推薦路線沿途最高 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對敏感族群不健康）</strong>，
+                  氣喘、心肺疾病患者及幼童請佩戴口罩後再出發。</p>
+                </div>
+              </div>`;
+          }
+          if (maskHtml) wrapper.insertAdjacentHTML('beforeend', maskHtml);
+        }
+
+        // ── 渲染路線卡片 ───────────────────────────────────────
         sortedResults.forEach(routeResult => {
-          const isRec     = routeResult.is_ai_recommended;
-          const coverage  = routeResult.data_coverage ?? 'unknown';
+          const isRec      = routeResult.is_ai_recommended;
+          const coverage   = routeResult.data_coverage ?? 'unknown';
           const scoreClass = isRec ? 'healthy' : '';
 
-          // [修正①] 所有後端回傳值先經 escapeHtml() 處理，防止 XSS
-          // [Bug1 修正] safeId 從 displayNames 取顯示文字，而非直接用後端回傳的 ASCII key
           const safeId    = escapeHtml(displayNames[routeResult.route_id] ?? routeResult.route_id);
           const safeAvg   = escapeHtml(routeResult.average_exposure_pm25);
           const safePeak  = escapeHtml(routeResult.peak_exposure_pm25);
           const safeCount = escapeHtml(routeResult.analyzed_points_count);
 
-          // [修正⑦] data_coverage 為 "none" 時顯示估算警示
           const coverageHtml = (coverage === 'none')
             ? `<span class="coverage-warning">⚠️ 此路線無感測器覆蓋，數值為全區估算值</span>`
             : (coverage === 'sparse'
               ? `<span class="coverage-warning">⚠️ 感測器覆蓋稀疏，數值僅供參考</span>`
               : '');
 
-          // [修正②] 改用固定 id 的 nav-map 元素，不再拼接含引號的選取器字串
           const card = document.createElement('div');
-          card.className = `route-result-card${isRec ? ' recommended' : ''}`;
-          card.style.cursor = 'pointer';
-          card.addEventListener('click', () => switchTab('map', document.getElementById('nav-map')));
+          card.className            = `route-result-card${isRec ? ' recommended' : ''}`;
+          card.dataset.routeId      = routeResult.route_id;  // 供 selectRoute 識別
 
-          // 用 innerHTML 插入已消毒的字串（所有動態值都已過 escapeHtml）
+          // 點擊卡片 → 選取該路線（切換實/虛線）並切換到地圖頁
+          card.addEventListener('click', () => {
+            selectRoute(routeResult.route_id);
+            switchTab('map', document.getElementById('nav-map'));
+          });
+
           card.innerHTML = `
             <div class="route-result-info">
               <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${safeId}</h4>
@@ -768,28 +838,32 @@
               <span class="route-pm-score ${scoreClass}">${safeAvg} <small style="font-size: 14px; color:#5f6368; font-weight:normal;">µg/m³</small></span>
             </div>
           `;
-
-          // [修正④] 使用 appendChild，與排序方向一致（推薦在最上面）
           wrapper.appendChild(card);
 
-          // 在地圖上繪製路線
-          // [Bug1 修正] 改用純 ASCII routeKey 查詢 pendingRouteCoords，確保 lookup 一定命中
+          // ── 在地圖上繪製路線 ─────────────────────────────────
           const coordsForMap = pendingRouteCoords[routeResult.route_id];
-          if (coordsForMap && typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+          if (coordsForMap && typeof L !== 'undefined' && typeof map !== 'undefined') {
             const polyline = L.polyline(coordsForMap, {
-              color:     isRec ? '#0f9d58' : '#80868b',
-              weight:    isRec ? 7 : 4,
-              opacity:   isRec ? 0.9 : 0.6,
+              color    : isRec ? '#0f9d58' : '#80868b',
+              weight   : isRec ? 7 : 4,
+              opacity  : isRec ? 0.9 : 0.5,
               dashArray: isRec ? null : '10, 10'
             }).addTo(map);
 
+            // 標記是否為推薦路線，供 selectRoute 讀取
+            polyline._pmIsRecommended = isRec;
+            routePolylines[routeResult.route_id] = polyline;
+
             if (isRec) {
               polyline.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${safeAvg} µg/m³`).openPopup();
-              map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
             }
-            currentRouteLayers.push(polyline);
           }
         });
+
+        // ── 預設選取推薦路線（初次渲染後自動 fitBounds）──────────
+        const defaultId = sortedResults.find(r => r.is_ai_recommended)?.route_id
+                       ?? sortedResults[0]?.route_id;
+        if (defaultId) selectRoute(defaultId);
 
         resultsContainer.classList.add('active');
         alert("運算完成！已在地圖上為您標示推薦的最健康路線。");
@@ -801,6 +875,8 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線`;
+        // ── 路線計算完成，恢復自動資料更新 ──────────────────────
+        isRoutingInProgress = false;
       }
     }
   </script>

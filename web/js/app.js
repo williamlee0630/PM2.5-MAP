@@ -298,6 +298,14 @@ function renderCharts() {
 
 // === 抓取資料主函式 (PapaParse) ===
 function fetchData(isAuto = false) {
+  // ── 效能保護：路線計算進行中時，跳過自動更新 ──────────────────
+  // isRoutingInProgress 由 index.html 的 callPythonRoutingAPI() 控制。
+  // 路線計算需要 fetch + Python 運算，若同時跑 PapaParse + 重繪地圖
+  // 會搶佔主執行緒與網路，導致計算顯著變慢。
+  if (isAuto && typeof isRoutingInProgress !== 'undefined' && isRoutingInProgress) {
+    return;
+  }
+
   if (!isAuto) document.getElementById('data-status').innerText = '資料讀取中...';
 
   Papa.parse(csvUrl, {
