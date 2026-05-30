@@ -83,13 +83,43 @@ async function updateDynamicText(data) {
 
 // === 圖表頁籤切換邏輯 ===
 function switchChartTab(tabId, btnElement) {
-  // 移除所有 active 狀態
   document.querySelectorAll('.chart-tab').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.chart-panel').forEach(panel => panel.classList.remove('active'));
-  
-  // 啟動點擊的標籤與對應面板
   btnElement.classList.add('active');
   document.getElementById(`chart-panel-${tabId}`).classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────
+// [修正] 時間序列標籤格式化
+// 原本：d.timestamp.split(' ')[1]  → 只顯示時間，跨日時無從分辨
+// 現在：
+//   - 同一天的後續點：只顯示 HH:MM:SS
+//   - 每天第一筆 (或整筆資料第一筆)：顯示 MM/DD HH:MM:SS
+// 這樣 X 軸既標示跨日邊界，又不在每個刻度都印完整日期造成擁擠。
+// ─────────────────────────────────────────────────────────────
+function formatTrendLabel(timestamp, prevTimestamp) {
+  if (!timestamp) return '';
+
+  // 支援 "2026-05-29 0:43:00" 或純時間字串兩種格式
+  const parts = timestamp.trim().split(/\s+/);
+  const datePart = parts.length >= 2 ? parts[0] : '';   // "2026-05-29"
+  const timePart = parts.length >= 2 ? parts[1] : parts[0]; // "0:43:00"
+
+  if (!datePart) return timePart; // 無日期資訊時原樣顯示
+
+  // 取前一筆的日期部分做比較
+  const prevParts = prevTimestamp ? prevTimestamp.trim().split(/\s+/) : [];
+  const prevDatePart = prevParts.length >= 2 ? prevParts[0] : null;
+
+  if (prevDatePart === datePart) {
+    // 同一天：只顯示時間
+    return timePart;
+  } else {
+    // 跨日或第一筆：顯示 MM/DD 時:分:秒
+    // 把 "2026-05-29" → "05/29"，去掉年份節省空間
+    const dateShort = datePart.replace(/^\d{4}-/, '').replace('-', '/');
+    return `${dateShort} ${timePart}`;
+  }
 }
 
 // === 圖表渲染主函式 (含縮放與時段篩選) ===
@@ -120,7 +150,13 @@ function renderCharts() {
     }
   }
 
-  const labels = trendData.map(d => d.timestamp ? d.timestamp.split(' ')[1] || d.timestamp : '');
+  // [修正] 使用 formatTrendLabel，傳入當前與前一筆的 timestamp 做跨日比較
+  const labels = trendData.map((d, i) =>
+    formatTrendLabel(
+      d.timestamp,
+      i > 0 ? trendData[i - 1].timestamp : null
+    )
+  );
   const pm25Values = trendData.map(d => d.pm25);
 
   const statusCounts = { '良好': 0, '普通': 0, '對敏感族群不健康': 0, '對所有族群不健康': 0, '非常不健康': 0, '危害': 0 };
