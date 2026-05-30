@@ -302,6 +302,20 @@ async def calculate_health_routes(request: Request, payload: HealthRoutingReques
         route_points = np.array([[c.lat, c.lon] for c in route.coordinates])
         route_points_rad = np.radians(route_points)
 
+        # ── 路線總長度（Haversine 向量化計算）────────────────────
+        # 使用 np.diff 對相鄰座標逐段計算弧長後加總，
+        # 結果作為同 PM2.5 時的次要排序依據（短路線優先）。
+        if len(route_points) >= 2:
+            lat_r = route_points_rad[:, 0]
+            lon_r = route_points_rad[:, 1]
+            dlat  = np.diff(lat_r)
+            dlon  = np.diff(lon_r)
+            a_seg = (np.sin(dlat / 2) ** 2
+                     + np.cos(lat_r[:-1]) * np.cos(lat_r[1:]) * np.sin(dlon / 2) ** 2)
+            total_distance_m = float(np.sum(2 * 6_371_000 * np.arcsin(np.sqrt(np.clip(a_seg, 0, 1)))))
+        else:
+            total_distance_m = 0.0
+
         # 批次查詢整條路線所有節點半徑內的所有測站索引
         indices_list = spatial_tree.query_radius(
             route_points_rad,
@@ -342,16 +356,32 @@ async def calculate_health_routes(request: Request, payload: HealthRoutingReques
             data_coverage = "none"
 
         evaluated_results.append({
-            "route_id": route.route_id,
+            "route_id":              route.route_id,
             "average_exposure_pm25": round(avg_exposure, 2),
-            "peak_exposure_pm25": round(max_exposure, 2),
+            "peak_exposure_pm25":    round(max_exposure, 2),
             "analyzed_points_count": len(route.coordinates),
             "matched_sensors_count": int(unique_indices.size),
-            "data_coverage": data_coverage,          # "full" | "partial" | "sparse" | "none"
+            "total_distance_m":      round(total_distance_m),   # 新增：路線總長（公尺）
+            "data_coverage":         data_coverage,
         })
 
-    # 依平均 PM2.5 由低到高排序
-    evaluated_results.sort(key=lambda x: x["average_exposure_pm25"])
+    # ──────────────────────────────────────────────────────────────────
+    # 多準則排序（修正：純 PM2.5 排序導致等值時優先選較長路線的問題）
+    #
+    # 邏輯：
+    #   ① 主要條件：平均 PM2.5（取整數 bin，容忍 <1 µg/m³ 的微小差異）
+    #      → 相差不到 1 µg/m³ 的路線視為「空氣品質相同」
+    #   ② 次要條件：路線總長度（同 PM2.5 等級時，短路線優先）
+    #
+    # 範例：
+    #   Route A 39.29 µg/m³  1500 m  → bin=39, 1500m
+    #   Route B 39.29 µg/m³  1100 m  → bin=39, 1100m → 排序第一 ✓
+    #   Route C 38.50 µg/m³  2000 m  → bin=38, 2000m → 排序第一（PM2.5 明確更低）✓
+    # ──────────────────────────────────────────────────────────────────
+    evaluated_results.sort(key=lambda x: (
+        int(x["average_exposure_pm25"]),   # PM2.5 整數 bin（主）
+        x["total_distance_m"]              # 路線距離（次，短優先）
+    ))
 
     # 動態標記推薦路線（僅在資料覆蓋率足夠時標記，避免誤導）
     for i, res in enumerate(evaluated_results):
