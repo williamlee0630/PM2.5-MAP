@@ -204,33 +204,52 @@ function getPointCounty(lat, lon) {
 }
 
 
-// ── 批次查詢各感測點的鄉鎮市區（呼叫後端 NLSC proxy）───────────
-// 每次最多同時發 10 個請求，避免超出 API 速率限制
-const _districtCache = {};   // "lat,lon" → "士林區"
+// ── 批次查詢各感測點的鄉鎮市區（單一 POST，後端一次回傳）────────
+// 前端不再逐點打 API，改為收集所有未查詢座標後一次送出，
+// 完全避免 429 速率超限問題。
+const _districtCache = {};   // "lat3,lon3" → "士林區"
 
 async function fetchDistrictBatch(points) {
-  const BATCH = 10;
-  const todo = points.filter(p => {
+  // 找出尚未查詢過的唯一座標
+  const todo = [];
+  const seen = new Set();
+  for (const p of points) {
     const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
-    return _districtCache[key] === undefined;
-  });
+    if (_districtCache[key] === undefined && !seen.has(key)) {
+      seen.add(key);
+      todo.push(p);
+    }
+  }
+  if (todo.length === 0) return;
 
-  for (let i = 0; i < todo.length; i += BATCH) {
-    const chunk = todo.slice(i, i + BATCH);
-    await Promise.all(chunk.map(async (p) => {
+  // 一次 POST 送所有未查詢座標（後端並發查 NLSC，單次回傳）
+  const coordinates = todo.map(p => ({
+    lat: parseFloat(p.latitude),
+    lon: parseFloat(p.longitude)
+  }));
+
+  try {
+    const res = await fetch('https://pm2-5-map.onrender.com/api/batch-districts', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ coordinates }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // 把結果寫入快取（鍵為 3 位精度）
+    for (const [rawKey, name] of Object.entries(data.results ?? {})) {
+      const [lat, lon] = rawKey.split(',');
+      const cacheKey = `${parseFloat(lat).toFixed(3)},${parseFloat(lon).toFixed(3)}`;
+      _districtCache[cacheKey] = name;
+    }
+  } catch (e) {
+    console.error('batch-districts 查詢失敗:', e.message);
+    // 失敗時把這批標記為「其他」，不阻塞後續流程
+    for (const p of todo) {
       const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
-      if (_districtCache[key] !== undefined) return;
-      try {
-        const res = await fetch(
-          `https://pm2-5-map.onrender.com/api/point-to-district?lat=${p.latitude}&lon=${p.longitude}`
-        );
-        const data = res.ok ? await res.json() : {};
-        // 優先顯示鄉鎮名（士林區），否則縣市名（台北市）
-        _districtCache[key] = data.town || data.county || '其他';
-      } catch {
-        _districtCache[key] = '其他';
-      }
-    }));
+      _districtCache[key] = '其他';
+    }
   }
 }
 

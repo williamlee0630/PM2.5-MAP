@@ -939,26 +939,80 @@ async def get_town_geojson(request: Request):
         raise HTTPException(status_code=502, detail=f"GeoJSON 來源無法存取：{str(e)}")
 
 
-@app.get("/api/point-to-district")
-@limiter.limit("60/minute")
-async def point_to_district(request: Request, lat: float, lon: float):
+# ── 批次座標→行政區查詢 Request Model ───────────────────────────
+class BatchDistrictsRequest(BaseModel):
+    coordinates: List[Coordinate]
+
+    @field_validator("coordinates")
+    @classmethod
+    def limit_size(cls, v):
+        if len(v) > 500:
+            raise ValueError("單次最多查詢 500 個座標")
+        return v
+
+
+@app.post("/api/batch-districts")
+@limiter.limit("10/minute")   # 前端每次只打一個 POST，速率限制大幅放寬
+async def batch_districts(request: Request, payload: BatchDistrictsRequest):
     """
-    呼叫 NLSC 內政部 API 查詢點位所屬鄉鎮市區。
-    前端批次呼叫，取得每筆感測器資料的區級行政區名稱。
-    回傳格式：{"county": "台北市", "town": "士林區"}
+    批次座標 → 行政區名稱查詢。
+    前端送全部去重後的座標，後端一次處理完並回傳，
+    避免前端逐點查詢導致 429 速率超限。
+
+    後端以精度 0.001°（約 111m）做二次去重 + 內部快取，
+    減少對 NLSC API 的實際呼叫次數。
+
+    回傳：{"results": {"lat,lon": "士林區", ...}}
     """
-    url = f"https://api.nlsc.gov.tw/other/TownVillagePointQuery/{lon}/{lat}"
-    try:
-        resp = await http_client.get(url, timeout=5.0)
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "county": data.get("ctyName", ""),
-                "town":   data.get("townName", ""),
-            }
-    except Exception:
-        pass
-    return {"county": "", "town": ""}
+    # 內部快取（進程生命週期內有效，鍵為 "lat3,lon3"）
+    _cache: dict = getattr(batch_districts, "_cache", {})
+    batch_districts._cache = _cache
+
+    # 以 0.001° 精度去重（不同請求的相近點共用快取）
+    unique_coords: dict[str, Coordinate] = {}
+    for c in payload.coordinates:
+        key = f"{round(c.lat, 3)},{round(c.lon, 3)}"
+        if key not in unique_coords:
+            unique_coords[key] = c
+
+    # 分出需查詢與已快取的座標
+    to_query = {k: v for k, v in unique_coords.items() if k not in _cache}
+
+    # 並發呼叫 NLSC API（最多 20 個同時）
+    SEM = asyncio.Semaphore(20)
+
+    async def _query_one(key: str, coord: Coordinate) -> tuple[str, str]:
+        async with SEM:
+            url = (
+                f"https://api.nlsc.gov.tw/other/TownVillagePointQuery"
+                f"/{coord.lon}/{coord.lat}"
+            )
+            try:
+                resp = await http_client.get(url, timeout=6.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    town   = data.get("townName", "")
+                    county = data.get("ctyName", "")
+                    # 優先回傳鄉鎮名（士林區），若無則縣市名（台北市）
+                    return key, (town or county or "其他")
+            except Exception:
+                pass
+            return key, "其他"
+
+    if to_query:
+        results = await asyncio.gather(*[
+            _query_one(k, v) for k, v in to_query.items()
+        ])
+        for key, name in results:
+            _cache[key] = name
+
+    # 組合回傳：把每個輸入座標映射回結果
+    output = {}
+    for c in payload.coordinates:
+        key = f"{round(c.lat, 3)},{round(c.lon, 3)}"
+        output[f"{c.lat},{c.lon}"] = _cache.get(key, "其他")
+
+    return {"results": output}
 
 if __name__ == "__main__":
     import uvicorn
