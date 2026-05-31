@@ -180,18 +180,29 @@ function getCountyName(lon, lat, features) {
 // ── 懶載入台灣縣市 GeoJSON（僅首次呼叫時下載）─────────────────
 async function loadCountyGeoJSONIfNeeded() {
   if (countyGeoJSON) return true;
-  try {
-    // twTown2010.geo.json：鄉鎮市區層級，可細分到「區」
-    const res = await fetch(
-      'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twTown2010.geo.json'
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    countyGeoJSON = await res.json();
-    return true;
-  } catch (e) {
-    console.warn('縣市 GeoJSON 載入失敗（地區功能降級）:', e);
-    return false;
+  // 多層備援：任一來源成功即停止
+  // ① GitHub Raw 鄉鎮市區（最細）
+  // ② GitHub Raw 縣市層級（備援）
+  // ③ jsDelivr 縣市層級（最終備援）
+  const URLS = [
+    'https://raw.githubusercontent.com/g0v/twgeojson/master/json/twTown2010.geo.json',
+    'https://raw.githubusercontent.com/g0v/twgeojson/master/json/twCounty2010.geo.json',
+    'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json',
+  ];
+
+  for (const url of URLS) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      countyGeoJSON = await res.json();
+      console.log('GeoJSON 載入成功:', url);
+      return true;
+    } catch (e) {
+      console.warn(`GeoJSON 載入失敗 (${url}):`, e.message, '，嘗試下一個來源…');
+    }
   }
+  console.error('所有 GeoJSON 來源皆無法存取，地區功能停用');
+  return false;
 }
 
 // ── 以快取+射線法查詢點位所屬縣市（精確到小數點後 4 位）──────────
