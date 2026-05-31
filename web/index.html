@@ -679,15 +679,31 @@
       const url = `https://pm2-5-map.onrender.com/api/geocode?q=${encodeURIComponent(address)}`;
       const res = await fetch(url);
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || `找不到地址：${address}`);
+        const errData = await res.json();
+        throw new Error(errData.detail || `找不到地址：${address}`);
       }
       return await res.json();
     }
 
-    // ★ 主邏輯：呼叫後端智慧路徑規劃 API
-    // 後端負責：呼叫 OSRM → 偵測污染熱區 → 生成繞路 → 多準則評分（暴露指數）
-    // 前端只需傳入起終點座標與交通方式，後端回傳 polyline 座標直接畫
+    // OSRM 呼叫（前端直接呼叫，避免後端被擋）
+    async function getOSRMRoute(startCoord, endCoord, mode, waypoint = null) {
+      let coordStr;
+      if (waypoint) {
+        coordStr = `${startCoord.lon},${startCoord.lat};${waypoint.lon},${waypoint.lat};${endCoord.lon},${endCoord.lat}`;
+      } else {
+        coordStr = `${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}`;
+      }
+      const alt  = waypoint ? 'false' : 'true';
+      const url  = `https://router.project-osrm.org/route/v1/${mode}/${coordStr}?geometries=geojson&alternatives=${alt}&overview=full`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.routes?.length) return [];
+      return data.routes;
+    }
+
+    // ★ 主邏輯：前端協調 OSRM + 後端感測評分
+    // 流程：① OSRM 基礎路線 → ② 後端偵測熱區取 waypoints
+    //      → ③ OSRM 繞路路線 → ④ 後端統一評分 → ⑤ 顯示
     async function callPythonRoutingAPI() {
       const btn              = document.getElementById('btn-calc-route');
       const resultsContainer = document.getElementById('route-results-container');
@@ -697,88 +713,136 @@
       const endAddress   = document.getElementById('route-end').value.trim();
       const routeMode    = document.getElementById('route-mode').value;
 
-      if (!startAddress || !endAddress) {
-        alert("請輸入完整的起點與目的地！");
-        return;
-      }
+      if (!startAddress || !endAddress) { alert("請輸入完整的起點與目的地！"); return; }
 
       btn.disabled = true;
-      btn.innerHTML = `<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span> 地理編碼與空間運算中...`;
+      btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 地理編碼與空間運算中...`;
       resultsContainer.classList.remove('active');
       isRoutingInProgress = true;
 
-      Object.values(routePolylines).forEach(poly => {
-        if (typeof map !== 'undefined' && map) map.removeLayer(poly);
-      });
-      routePolylines     = {};
-      pendingRouteCoords = {};
-      selectedRouteId    = null;
-      wrapper.innerHTML  = '';
+      Object.values(routePolylines).forEach(p => { if (typeof map !== 'undefined') map.removeLayer(p); });
+      routePolylines = {}; pendingRouteCoords = {}; selectedRouteId = null; wrapper.innerHTML = '';
 
       const modeIcon = routeMode === 'driving' ? '🚗' : (routeMode === 'cycling' ? '🚲' : '🚶');
-      const strategyNames = {
-        'direct':         `${modeIcon} 最快路線`,
-        'direct_alt':     `${modeIcon} OSRM 替代路線`,
-        'detour_clean_A': `${modeIcon} 低污染繞路 A`,
-        'detour_clean_B': `${modeIcon} 低污染繞路 B`,
+      const strategyLabel = {
+        'route_0': `${modeIcon} 最快路線`,
+        'route_1': `${modeIcon} OSRM 替代路線`,
+        'detour_A': `${modeIcon} 低污染繞路 A`,
+        'detour_B': `${modeIcon} 低污染繞路 B`,
       };
 
       try {
+        // ① 地理編碼
         const startCoord = await geocodeAddress(startAddress);
         const endCoord   = await geocodeAddress(endAddress);
 
-        const pyRes = await fetch('https://pm2-5-map.onrender.com/api/smart-route', {
+        // ② OSRM 基礎路線（前端直接呼叫）
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 取得基礎路線中...`;
+        const baseRoutes = await getOSRMRoute(startCoord, endCoord, routeMode);
+        if (!baseRoutes.length) throw new Error("OSRM 無法規劃此路段，請嘗試其他起終點");
+
+        // 轉換座標格式 [lon,lat] → [{lat,lon}]
+        const toCoordObjs = coords => coords.map(([lat, lon]) => ({ lat, lon }));
+        const toLLPairs   = coords => coords.map(c => [c[1], c[0]]); // OSRM [lon,lat] → [lat,lon]
+
+        const allRoutes = []; // { route_id, latLonPairs }
+        baseRoutes.slice(0, 2).forEach((r, i) => {
+          allRoutes.push({ route_id: `route_${i}`, latLonPairs: toLLPairs(r.geometry.coordinates) });
+        });
+
+        // ③ 送主路線給後端偵測熱區，取 waypoints
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 偵測空污熱區中...`;
+        const mainCoords = toCoordObjs(allRoutes[0].latLonPairs);
+        const hotspotRes = await fetch('https://pm2-5-map.onrender.com/api/detect-hotspots', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            start: { lat: startCoord.lat, lon: startCoord.lon },
-            end:   { lat: endCoord.lat,   lon: endCoord.lon   },
-            mode:  routeMode,
-          })
+          body: JSON.stringify({ mode: routeMode, coordinates: mainCoords })
         });
-        if (!pyRes.ok) {
-          const errData = await pyRes.json().catch(() => ({}));
-          throw new Error(errData.detail || "後端伺服器無回應，請確認已喚醒");
+        const hotspotData = hotspotRes.ok ? await hotspotRes.json() : { waypoints: [] };
+        const waypoints   = hotspotData.waypoints ?? [];
+
+        // ④ 用每個 waypoint 呼叫 OSRM 取得繞路路線（並發）
+        if (waypoints.length) {
+          btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 生成低污染繞路中...`;
+          const detourPromises = waypoints.map(wp =>
+            getOSRMRoute(startCoord, endCoord, routeMode, wp)
+          );
+          const detourResults = await Promise.allSettled(detourPromises);
+
+          detourResults.forEach((result, idx) => {
+            if (result.status !== 'fulfilled' || !result.value?.length) return;
+            const wp = waypoints[idx];
+            const rid = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
+            // 去重：距離差 < 50m 視為同一路線
+            const distM = result.value[0].distance ?? 0;
+            const alreadyHas = allRoutes.some(r => Math.abs(r.distM - distM) < 50);
+            if (!alreadyHas) {
+              allRoutes.push({
+                route_id: rid,
+                distM,
+                latLonPairs: toLLPairs(result.value[0].geometry.coordinates)
+              });
+            }
+          });
         }
-        const pyData = await pyRes.json();
 
-        const sortedResults = [...pyData.results].sort((a, b) => {
-          if (a.is_ai_recommended === b.is_ai_recommended) return 0;
-          return a.is_ai_recommended ? -1 : 1;
+        // ⑤ 送所有路線給後端統一評分
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 空污評分中...`;
+        const scorePayload = {
+          mode: routeMode,
+          routes: allRoutes.map(r => ({
+            route_id:    r.route_id,
+            coordinates: toCoordObjs(r.latLonPairs)
+          }))
+        };
+        const scoreRes = await fetch('https://pm2-5-map.onrender.com/api/score-routes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scorePayload)
         });
+        if (!scoreRes.ok) {
+          const e = await scoreRes.json().catch(() => ({}));
+          throw new Error(e.detail || "評分伺服器無回應");
+        }
+        const pyData = await scoreRes.json();
+        const sortedResults = [...pyData.results].sort((a, b) =>
+          a.is_ai_recommended === b.is_ai_recommended ? 0 : (a.is_ai_recommended ? -1 : 1)
+        );
 
+        // 保存座標對照
+        allRoutes.forEach(r => { pendingRouteCoords[r.route_id] = r.latLonPairs; });
+
+        // ── 單一路線提示
         if (sortedResults.length === 1) {
-          const notice = document.createElement('p');
-          notice.style.cssText = 'color:#5f6368; font-size:14px; margin-bottom:12px;';
-          notice.textContent = '⚠️ 此路段僅找到一條可用路線，無法進行替代比較';
-          wrapper.appendChild(notice);
+          const n = document.createElement('p');
+          n.style.cssText = 'color:#5f6368;font-size:14px;margin-bottom:12px;';
+          n.textContent   = '⚠️ 此路段僅找到一條可用路線，無法進行替代比較';
+          wrapper.appendChild(n);
         }
 
+        // ── 口罩提醒
         const recRoute = sortedResults.find(r => r.is_ai_recommended);
         if (recRoute) {
           const peak = parseFloat(recRoute.peak_exposure_pm25);
-          let maskHtml = '';
           if (peak >= 54.5) {
-            maskHtml = `<div class="health-alert-mask"><span class="mask-icon">😷</span><div>
+            wrapper.insertAdjacentHTML('beforeend', `<div class="health-alert-mask"><span class="mask-icon">😷</span><div>
               <strong>⚠️ 強烈建議所有人佩戴口罩或 N95</strong>
-              <p>推薦路線沿途最高 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對所有族群不健康）</strong>，長時間暴露對心肺系統有明顯負擔，出發前請務必佩戴防護口罩。</p>
-            </div></div>`;
+              <p>推薦路線峰值 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對所有族群不健康）</strong>，請務必佩戴防護口罩。</p>
+            </div></div>`);
           } else if (peak >= 35.5) {
-            maskHtml = `<div class="health-alert-mask"><span class="mask-icon">😷</span><div>
+            wrapper.insertAdjacentHTML('beforeend', `<div class="health-alert-mask"><span class="mask-icon">😷</span><div>
               <strong>建議敏感族群佩戴口罩</strong>
-              <p>推薦路線沿途最高 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對敏感族群不健康）</strong>，氣喘、心肺疾病患者及幼童請佩戴口罩後再出發。</p>
-            </div></div>`;
+              <p>推薦路線峰值 PM2.5 達 <strong>${escapeHtml(recRoute.peak_exposure_pm25)} µg/m³（對敏感族群不健康）</strong>，氣喘患者及幼童請佩戴口罩。</p>
+            </div></div>`);
           }
-          if (maskHtml) wrapper.insertAdjacentHTML('beforeend', maskHtml);
         }
 
+        // ── 渲染卡片
         sortedResults.forEach(routeResult => {
           const isRec      = routeResult.is_ai_recommended;
           const coverage   = routeResult.data_coverage ?? 'unknown';
-          const scoreClass = isRec ? 'healthy' : '';
-
-          const displayName = (strategyNames[routeResult.strategy] ?? `${modeIcon} 路線`) + ` (${routeResult.distance_km} km)`;
-          const safeId    = escapeHtml(displayName);
+          const label      = strategyLabel[routeResult.route_id] ?? `${modeIcon} 路線 (${routeResult.distance_km} km)`;
+          const safeId    = escapeHtml(`${label} (${routeResult.distance_km} km)`);
           const safeAvg   = escapeHtml(routeResult.average_exposure_pm25);
           const safePeak  = escapeHtml(routeResult.peak_exposure_pm25);
           const safeCount = escapeHtml(routeResult.analyzed_points_count);
@@ -787,9 +851,7 @@
 
           const coverageHtml = coverage === 'none'
             ? `<span class="coverage-warning">⚠️ 此路線無感測器覆蓋，數值為全區估算值</span>`
-            : coverage === 'sparse'
-              ? `<span class="coverage-warning">⚠️ 感測器覆蓋稀疏，數值僅供參考</span>`
-              : '';
+            : coverage === 'sparse' ? `<span class="coverage-warning">⚠️ 感測器覆蓋稀疏，數值僅供參考</span>` : '';
 
           const card = document.createElement('div');
           card.className       = `route-result-card${isRec ? ' recommended' : ''}`;
@@ -798,7 +860,6 @@
             selectRoute(routeResult.route_id);
             switchTab('map', document.getElementById('nav-map'));
           });
-
           card.innerHTML = `
             <div class="route-result-info">
               <h4>${isRec ? '<span class="material-symbols-outlined" style="color:#0f9d58;">verified</span>' : ''} ${safeId}</h4>
@@ -808,32 +869,26 @@
             </div>
             <div style="text-align:right;">
               <span style="font-size:13px;color:#5f6368;display:block;">預計平均曝露值</span>
-              <span class="route-pm-score ${scoreClass}">${safeAvg} <small style="font-size:14px;color:#5f6368;font-weight:normal;">µg/m³</small></span>
+              <span class="route-pm-score ${isRec ? 'healthy' : ''}">${safeAvg} <small style="font-size:14px;color:#5f6368;font-weight:normal;">µg/m³</small></span>
             </div>`;
           wrapper.appendChild(card);
 
-          const coords = routeResult.coordinates;
+          const coords = routeResult.coordinates ?? pendingRouteCoords[routeResult.route_id];
           if (coords && typeof L !== 'undefined' && typeof map !== 'undefined') {
-            const polyline = L.polyline(coords, {
-              color    : isRec ? '#0f9d58' : '#80868b',
-              weight   : isRec ? 7 : 4,
-              opacity  : isRec ? 0.9 : 0.5,
+            const poly = L.polyline(coords, {
+              color:     isRec ? '#0f9d58' : '#80868b',
+              weight:    isRec ? 7 : 4,
+              opacity:   isRec ? 0.9 : 0.5,
               dashArray: isRec ? null : '10, 10'
             }).addTo(map);
-            polyline._pmIsRecommended = isRec;
-            routePolylines[routeResult.route_id]     = polyline;
+            poly._pmIsRecommended = isRec;
+            routePolylines[routeResult.route_id]     = poly;
             pendingRouteCoords[routeResult.route_id] = coords;
-            if (isRec) {
-              polyline.bindPopup(
-                `<b>推薦健康路線</b><br>平均 PM2.5: ${safeAvg} µg/m³<br>` +
-                `行駛時間: ${safeTime} 分<br>暴露指數: ${safeEI} µg/m³·s`
-              ).openPopup();
-            }
+            if (isRec) poly.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${safeAvg} µg/m³<br>行駛時間: ${safeTime} 分`).openPopup();
           }
         });
 
-        const defaultId = sortedResults.find(r => r.is_ai_recommended)?.route_id
-                       ?? sortedResults[0]?.route_id;
+        const defaultId = sortedResults.find(r => r.is_ai_recommended)?.route_id ?? sortedResults[0]?.route_id;
         if (defaultId) selectRoute(defaultId);
 
         resultsContainer.classList.add('active');

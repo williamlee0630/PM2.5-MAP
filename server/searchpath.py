@@ -141,6 +141,31 @@ class SmartRouteRequest(BaseModel):
             raise ValueError("mode 必須為 driving、cycling 或 walking")
         return v
 
+# ── 熱區偵測 Request / Response ───────────────────────────────────
+class DetectHotspotsRequest(BaseModel):
+    """前端送來的基礎路線座標（已由前端呼叫 OSRM 取得）"""
+    mode:        str            = "driving"
+    coordinates: List[Coordinate]           # 主路線座標陣列
+
+    @field_validator("coordinates")
+    @classmethod
+    def must_have_coords(cls, v):
+        if len(v) < 2:
+            raise ValueError("座標陣列至少需要 2 個點")
+        return v
+
+# ── 多路線評分 Request ────────────────────────────────────────────
+class ScoreRoutesRequest(BaseModel):
+    mode:   str = "driving"
+    routes: List[RouteGeometry]   # 複數條路線（基礎 + 繞路）
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        if v not in ("driving", "cycling", "walking"):
+            raise ValueError("mode 必須為 driving、cycling 或 walking")
+        return v
+
 # ─────────────────────────────────────────────
 # 本地記憶體快取（單 worker 模式適用）
 # [修正⑩] 已在程式碼與部署說明中標注多 worker 限制
@@ -744,6 +769,133 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
         "status": "success",
         "mode":   mode,
         "debug":  debug_info,
+        "results": scored[:3],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# /api/detect-hotspots  ── 步驟①後端
+# 接收前端已取得的路線座標，回傳高污染熱區與繞路 waypoints
+# 前端用 waypoints 再呼叫 OSRM 取得繞路路線
+# ═══════════════════════════════════════════════════════════════════
+@app.post("/api/detect-hotspots")
+@limiter.limit("20/minute")
+async def detect_hotspots(request: Request, payload: DetectHotspotsRequest):
+    """
+    接收主路線座標 → 偵測 PM2.5 熱區 → 回傳繞路 waypoints。
+    前端拿到 waypoints 後自行呼叫 OSRM 取得繞路路線，
+    再把所有路線送給 /api/score-routes 統一評分。
+    """
+    df, tree = await fetch_sensor_data_and_build_tree()
+
+    route_latlon = [[c.lat, c.lon] for c in payload.coordinates]
+    hotspots     = _find_hotspots(route_latlon, df, tree)
+
+    waypoints = []
+    for c_lat, c_lon, pm_val in hotspots:
+        for side, label in [(1, "detour_clean_A"), (-1, "detour_clean_B")]:
+            wp = _make_detour_waypoint(
+                route_latlon, c_lat, c_lon, DETOUR_OFFSET_M, side
+            )
+            if wp:
+                waypoints.append({
+                    "lat":   wp[0],
+                    "lon":   wp[1],
+                    "label": label,
+                    "near_pm25": round(pm_val, 1),
+                })
+
+    return {
+        "status":              "success",
+        "hotspots_detected":   len(hotspots),
+        "hotspot_details": [
+            {"lat": round(h[0], 5), "lon": round(h[1], 5), "pm25": round(h[2], 1)}
+            for h in hotspots
+        ],
+        "waypoints": waypoints,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# /api/score-routes  ── 步驟②後端
+# 接收所有路線座標（基礎 + 繞路），統一評分並回傳 Top 3
+# ═══════════════════════════════════════════════════════════════════
+@app.post("/api/score-routes")
+@limiter.limit("10/minute")
+async def score_routes(request: Request, payload: ScoreRoutesRequest):
+    """
+    接收多條路線座標（前端已呼叫 OSRM 取得幾何），
+    以街道級 400 m 半徑評分，按 PM2.5 由低到高排序，回傳 Top 3。
+    """
+    if not payload.routes:
+        raise HTTPException(status_code=400, detail="請提供至少一條路線")
+
+    df, tree = await fetch_sensor_data_and_build_tree()
+    mode     = payload.mode
+    speed_ms = MODE_SPEED_KMH.get(mode, 30) * 1000 / 3600
+    pm25_col = df["pm25"].values
+    scored   = []
+
+    for route in payload.routes:
+        latlon   = [[c.lat, c.lon] for c in route.coordinates]
+        pts_rad  = np.radians(np.array(latlon))
+
+        # 路線總長（向量化 Haversine）
+        if len(pts_rad) >= 2:
+            dlat  = np.diff(pts_rad[:, 0]); dlon = np.diff(pts_rad[:, 1])
+            a_seg = (
+                np.sin(dlat / 2) ** 2
+                + np.cos(pts_rad[:-1, 0]) * np.cos(pts_rad[1:, 0]) * np.sin(dlon / 2) ** 2
+            )
+            total_m = float(np.sum(2 * 6_371_000 * np.arcsin(np.sqrt(np.clip(a_seg, 0, 1)))))
+        else:
+            total_m = 0.0
+
+        travel_s = total_m / speed_ms if speed_ms > 0 else 0
+
+        # 街道級評分（400 m 半徑）
+        step       = max(1, len(pts_rad) // 80)
+        sample_rad = pts_rad[::step]
+        idx_list   = tree.query_radius(sample_rad, r=SMART_SCORE_RADIUS_RAD, return_distance=False)
+        non_empty  = [idx for idx in idx_list if idx.size > 0]
+
+        if non_empty:
+            uid      = np.unique(np.concatenate(non_empty))
+            uid      = uid[uid < len(pm25_col)]
+            pm_vals  = pm25_col[uid]
+            avg_pm25 = float(np.mean(pm_vals))
+            max_pm25 = float(np.max(pm_vals))
+            cov      = sum(1 for idx in idx_list if idx.size > 0) / max(len(sample_rad), 1)
+            data_cov = "full" if cov >= 0.8 else ("partial" if cov >= 0.3 else "sparse")
+        else:
+            avg_pm25 = float(df["pm25"].mean())
+            max_pm25 = float(df["pm25"].max())
+            data_cov = "none"
+
+        scored.append({
+            "route_id":              route.route_id,
+            "coordinates":           latlon,
+            "average_exposure_pm25": round(avg_pm25, 2),
+            "peak_exposure_pm25":    round(max_pm25, 2),
+            "exposure_index":        round(avg_pm25 * travel_s, 1),
+            "travel_time_minutes":   round(travel_s / 60, 1),
+            "distance_km":           round(total_m / 1000, 2),
+            "analyzed_points_count": len(latlon),
+            "data_coverage":         data_cov,
+        })
+
+    if not scored:
+        raise HTTPException(status_code=500, detail="無法評估任何路線")
+
+    # 排序：平均 PM2.5（主）→ 距離（次）
+    scored.sort(key=lambda x: (x["average_exposure_pm25"], x["distance_km"]))
+
+    for i, res in enumerate(scored[:3]):
+        res["is_ai_recommended"] = (i == 0 and res["data_coverage"] != "none")
+
+    return {
+        "status":  "success",
+        "mode":    mode,
         "results": scored[:3],
     }
 
