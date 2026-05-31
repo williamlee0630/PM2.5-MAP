@@ -87,6 +87,7 @@ function switchChartTab(tabId, btnElement) {
   document.querySelectorAll('.chart-panel').forEach(panel => panel.classList.remove('active'));
   btnElement.classList.add('active');
   document.getElementById(`chart-panel-${tabId}`).classList.add('active');
+
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -127,20 +128,129 @@ function updateDateFilter(data) {
 // 時間序列標籤格式化
 // 同一天只顯示時間；跨日第一筆加上 MM/DD 前綴
 // ─────────────────────────────────────────────────────────────
-function formatTrendLabel(timestamp, prevTimestamp) {
+// 每筆都顯示完整日期時間 MM/DD HH:MM:SS
+function formatTrendLabel(timestamp) {
   if (!timestamp) return '';
   const parts = timestamp.trim().split(/\s+/);
-  const datePart = parts.length >= 2 ? parts[0] : '';
-  const timePart = parts.length >= 2 ? parts[1] : parts[0];
-  if (!datePart) return timePart;
-  const prevParts = prevTimestamp ? prevTimestamp.trim().split(/\s+/) : [];
-  const prevDatePart = prevParts.length >= 2 ? prevParts[0] : null;
-  if (prevDatePart === datePart) {
-    return timePart;
-  } else {
-    const dateShort = datePart.replace(/^\d{4}-/, '').replace('-', '/');
-    return `${dateShort} ${timePart}`;
+  if (parts.length < 2) return parts[0];
+  const dateShort = parts[0].replace(/^\d{4}-/, '').replace('-', '/');
+  return `${dateShort} ${parts[1]}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 縣市反查工具（GeoJSON 點位→縣市名稱）
+// 供：地區篩選下拉、數據後台縣市欄位、CSV 下載
+// ══════════════════════════════════════════════════════════════
+let countyGeoJSON   = null;   // 快取的台灣縣市 GeoJSON
+let _countyCache    = {};     // { "lat,lon": "縣市名" } 避免重複運算
+
+const COUNTY_GEOJSON_URL =
+  'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json';
+
+// ── 射線法：判斷點 [x,y] 是否在多邊形環內 ───────────────────────
+function _pointInRing([x, y], ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (((yi > y) !== (yj > y)) &&
+        x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
   }
+  return inside;
+}
+
+// ── 找出座標 (lon, lat) 屬於哪個縣市 ────────────────────────────
+function getCountyName(lon, lat, features) {
+  const pt = [lon, lat];
+  for (const f of features) {
+    const geo = f.geometry;
+    if (!geo) continue;
+    const polys = geo.type === 'MultiPolygon' ? geo.coordinates : [geo.coordinates];
+    for (const poly of polys) {
+      if (_pointInRing(pt, poly[0])) {
+        return f.properties.COUNTYNAME ?? f.properties.name ?? null;
+      }
+    }
+  }
+  return null;
+}
+
+// ── 懶載入台灣縣市 GeoJSON（僅首次呼叫時下載）─────────────────
+async function loadCountyGeoJSONIfNeeded() {
+  if (countyGeoJSON) return true;
+  try {
+    const res = await fetch(
+      'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json'
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    countyGeoJSON = await res.json();
+    return true;
+  } catch (e) {
+    console.warn('縣市 GeoJSON 載入失敗（地區功能降級）:', e);
+    return false;
+  }
+}
+
+// ── 以快取+射線法查詢點位所屬縣市（精確到小數點後 4 位）──────────
+function getPointCounty(lat, lon) {
+  if (!countyGeoJSON) return '載入中';
+  const key = `${parseFloat(lat).toFixed(4)},${parseFloat(lon).toFixed(4)}`;
+  if (_countyCache[key] !== undefined) return _countyCache[key];
+  const result = getCountyName(parseFloat(lon), parseFloat(lat), countyGeoJSON.features) ?? '其他';
+  _countyCache[key] = result;
+  return result;
+}
+
+// ── 非同步將縣市名稱寫入 globalData._county，並更新地區篩選選單 ──
+async function enrichDataWithCounty() {
+  const ok = await loadCountyGeoJSONIfNeeded();
+  if (!ok) return;
+  globalData.forEach(d => {
+    if (!d._county) d._county = getPointCounty(d.latitude, d.longitude);
+  });
+  updateRegionFilter();
+}
+
+// ── 地區篩選下拉選單動態重建 ─────────────────────────────────────
+function updateRegionFilter() {
+  const sel = document.getElementById('chartRegionFilter');
+  if (!sel) return;
+  const prev = sel.value;
+  const counties = [...new Set(globalData.map(d => d._county).filter(Boolean).filter(c => c !== '載入中'))].sort();
+  sel.innerHTML = '<option value="all">全部地區</option>';
+  counties.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+// ── CSV 下載（含縣市欄位，BOM 確保 Excel 正確顯示繁體中文）────────
+function downloadCSV() {
+  const headers = ['時間戳記', 'PM2.5 (µg/m³)', '縣市地區', '狀態等級', '緯度', '經度', '衛星數'];
+  const rows = [...globalData].reverse().map(d => [
+    d.timestamp ?? '',
+    d.pm25 ?? '',
+    d._county ?? '未知',
+    getStatus(d.pm25),
+    d.latitude ?? '',
+    d.longitude ?? '',
+    d.satellites ?? ''
+  ]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `空污共犯_PM25數據_${new Date().toLocaleDateString('zh-TW').replace(/\//g, '')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // === 圖表渲染主函式 ===
@@ -156,6 +266,13 @@ function renderCharts() {
     trendData = globalData.filter(d => d.pm25 >= 35.5);
   } else if (filterValue === 'danger') {
     trendData = globalData.filter(d => d.pm25 >= 54.5);
+  }
+
+  // ── 1b. 地區篩選 ──
+  const regionEl = document.getElementById('chartRegionFilter');
+  const regionValue = regionEl ? regionEl.value : 'all';
+  if (regionValue !== 'all') {
+    trendData = trendData.filter(d => d._county === regionValue);
   }
 
   // ── 2. 日期篩選 (新增) ──
@@ -197,12 +314,7 @@ function renderCharts() {
   }
 
   // ── 4. 標籤格式化（含跨日標示）──
-  const labels = trendData.map((d, i) =>
-    formatTrendLabel(
-      d.timestamp,
-      i > 0 ? trendData[i - 1].timestamp : null
-    )
-  );
+  const labels = trendData.map(d => formatTrendLabel(d.timestamp));
   const pm25Values = trendData.map(d => d.pm25);
 
   // ── 5. 圓餅圖統計（永遠基於 globalData，不受篩選影響）──
@@ -296,6 +408,42 @@ function renderCharts() {
   }
 }
 
+// === 重繪數據後台表格（含縣市欄位）===
+function rebuildTable() {
+  const tableBody = document.getElementById('data-table-body');
+  if (!tableBody) return;
+
+  // 重建前記住捲動位置，避免自動刷新時使用者被拉回頂部
+  const scrollEl = document.getElementById('data-scroll-container');
+  const savedTop = scrollEl ? scrollEl.scrollTop : 0;
+
+  tableBody.innerHTML = '';
+  const reversedData = [...globalData].reverse();
+  reversedData.forEach(function(point, index) {
+    addMarkerToMap(point, index === 0);
+    const pm25Val  = point.pm25;
+    const statusTxt = getStatus(pm25Val);
+    const colorHex  = getColor(pm25Val);
+    const countyTxt = point._county || '<span style="color:#aaa;font-size:12px;">解析中</span>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${point.timestamp || '--'}</td>
+      <td style="font-weight:bold;font-size:16px;">${pm25Val}</td>
+      <td>${countyTxt}</td>
+      <td><span class="status-badge" style="background-color:${colorHex};color:${pm25Val > 54.5 ? '#fff' : '#000'}">${statusTxt}</span></td>
+      <td>${point.latitude}</td>
+      <td>${point.longitude}</td>
+      <td>${point.satellites || 0}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  // 還原捲動位置（requestAnimationFrame 確保 DOM 繪製完成後再還原）
+  if (scrollEl && savedTop > 0) {
+    requestAnimationFrame(() => { scrollEl.scrollTop = savedTop; });
+  }
+}
+
 // === 抓取資料主函式 (PapaParse) ===
 function fetchData(isAuto = false) {
   // ── 效能保護：路線計算進行中時，跳過自動更新 ──────────────────
@@ -317,36 +465,27 @@ function fetchData(isAuto = false) {
       
       document.getElementById('data-status').innerText = `共讀取 ${globalData.length} 筆資料 (最後更新: ${new Date().toLocaleTimeString()})`;
 
-      // [新增] 每次資料刷新後重建日期選單
+      // 重建日期選單
       updateDateFilter(globalData);
 
       const tableBody = document.getElementById('data-table-body');
       tableBody.innerHTML = '';
-      
+
       clearMapMarkers();
       renderCharts();
       updateDynamicText(globalData);
 
-      const reversedData = [...globalData].reverse();
-      reversedData.forEach(function(point, index) {
-        addMarkerToMap(point, index === 0);
-        
-        const pm25Val = point.pm25;
-        const statusTxt = getStatus(pm25Val);
-        const colorHex = getColor(pm25Val);
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${point.timestamp || '--'}</td>
-          <td style="font-weight: bold; font-size: 16px;">${pm25Val}</td>
-          <td><span class="status-badge" style="background-color: ${colorHex}; color: ${pm25Val > 54.5 ? '#fff' : '#000'}">${statusTxt}</span></td>
-          <td>${point.latitude}</td>
-          <td>${point.longitude}</td>
-          <td>${point.satellites || 0}</td>
-        `;
-        tableBody.appendChild(tr);
+      // 非同步富集縣市資料（GeoJSON 懶載入，不阻塞主流程）
+      enrichDataWithCounty().then(() => {
+        // GeoJSON 載入完成後重繪圖表（地區篩選選單已更新）
+        renderCharts();
+        // 重繪表格（縣市欄位現在有值了）
+        rebuildTable();
       });
-      
+
+      // 先用現有資料渲染表格（縣市欄可能還是「載入中」）
+      rebuildTable();
+
       if (document.getElementById('view-map').classList.contains('active')) {
         refreshMapLayout();
       }

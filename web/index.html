@@ -494,10 +494,15 @@
             <span class="material-symbols-outlined">refresh</span>
             更新數據
           </button>
+          
+          <button class="action-btn" onclick="downloadCSV()" style="color:#0f9d58;border-color:#0f9d58;background:#e6f4ea;" title="下載含縣市地區的完整 CSV 檔">
+            <span class="material-symbols-outlined">download</span>
+            下載 CSV
+          </button>
         </div>
       </div>
       
-      <div style="overflow-y: auto; height: calc(100vh - 100px);">
+      <div id="data-scroll-container" style="overflow-y: auto; height: calc(100vh - 100px);">
         <table>
           <caption style="text-align: left; font-size: 13px; color: #666; margin-bottom: 8px;">
             實時更新的 PM2.5 監測數據（包含時間戳記、濃度、空氣品質狀態與經緯度）
@@ -506,6 +511,7 @@
             <tr>
               <th scope="col">時間戳記</th>
               <th scope="col">PM2.5 (µg/m³)</th>
+              <th scope="col">縣市地區</th>
               <th scope="col">狀態等級</th>
               <th scope="col">緯度</th>
               <th scope="col">經度</th>
@@ -554,6 +560,12 @@
               <option value="all">所有日期</option>
               <!-- 選項由 app.js updateDateFilter() 動態填入 -->
             </select>
+
+            <label for="chartRegionFilter"><span class="material-symbols-outlined" style="font-size: 18px;">location_on</span> 地區：</label>
+            <select id="chartRegionFilter" onchange="renderCharts()">
+              <option value="all">全部地區</option>
+              <!-- 選項由 app.js updateRegionFilter() 動態填入 -->
+            </select>
           </div>
 
           <div class="chart-card">
@@ -570,6 +582,8 @@
             </canvas>
           </div>
         </div>
+
+
 
       </div>
     </div>
