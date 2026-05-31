@@ -708,10 +708,20 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
     if not scored:
         raise HTTPException(status_code=500, detail="無法評估任何路線")
 
-    # ⑥ 排序：暴露指數（主）→ 距離（次），5% 容差 bin
-    min_ei   = min(r["exposure_index"] for r in scored)
-    bin_size = max(min_ei * 0.05, 100.0)
-    scored.sort(key=lambda x: (int(x["exposure_index"] / bin_size), x["distance_km"]))
+    # ⑥ 排序：平均 PM2.5（主）→ 距離（次）
+    # ★ 推薦邏輯：污染濃度最低的路線，不論行駛時間
+    #
+    # 為什麼不用暴露指數（PM2.5 × 時間）：
+    #   較快的路線即使 PM2.5 更高，因行駛時間短，暴露指數反而較小，
+    #   導致系統推薦「最快」而非「最乾淨」的路線，與使用者直覺相悖。
+    #
+    # 排序規則：
+    #   ① PM2.5 整數 bin（每 1 µg/m³ 一格，相差 < 1 µg/m³ 視為同等）
+    #   ② 同等污染時，距離較短的路線優先（節省時間）
+    scored.sort(key=lambda x: (
+        x["average_exposure_pm25"],   # 平均 PM2.5 直接比較（主）→ 污染最低優先
+        x["distance_km"],             # 距離（次，同 PM2.5 時短路線優先）
+    ))
 
     for i, res in enumerate(scored[:3]):
         res["is_ai_recommended"] = (i == 0 and res["data_coverage"] != "none")
