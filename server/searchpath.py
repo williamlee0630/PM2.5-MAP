@@ -90,8 +90,16 @@ HOTSPOT_RADIUS_RAD = HOTSPOT_SEARCH_M / 6_371_000
 # 超過此 PM2.5 閾值才觸發繞路邏輯
 DETOUR_THRESHOLD_PM25 = 35.5
 
-# 繞路偏移量（公尺）：注入 Waypoint 偏離路線的距離
-DETOUR_OFFSET_M = 400
+# 繞路偏移量（公尺）★ 400 → 800：確保 Waypoint 能真正逃出污染熱區
+DETOUR_OFFSET_M = 800
+
+# ── 智慧路徑「評分」專用半徑 ─────────────────────────────────────
+# 全域半徑 SEARCH_RADIUS_RADIANS = 6.4 km 涵蓋全城感測器，
+# 導致「繞開污染」與「穿越污染」的分數幾乎相同，系統無法辨別。
+# 智慧路徑改用 400 m 小半徑：只計算「這條街本身」的感測器讀值，
+# 走污染街道 vs 繞開後替代道路的分數才會真正不同。
+SMART_SCORE_M          = 400
+SMART_SCORE_RADIUS_RAD = SMART_SCORE_M / 6_371_000
 
 # ─────────────────────────────────────────────
 # Pydantic 資料型態定義
@@ -564,6 +572,7 @@ def _score_route(
     df: "pd.DataFrame",
     tree: "BallTree",
     mode: str,
+    score_radius_rad: float = SMART_SCORE_RADIUS_RAD,  # ★ 預設用街道級 400m 半徑
 ) -> dict:
     """
     多準則評分。
@@ -592,7 +601,7 @@ def _score_route(
     # PM2.5 空間查詢（沿路取樣最多 80 點）
     step       = max(1, len(pts_rad) // 80)
     sample_rad = pts_rad[::step]
-    idx_list   = tree.query_radius(sample_rad, r=SEARCH_RADIUS_RADIANS, return_distance=False)
+    idx_list   = tree.query_radius(sample_rad, r=score_radius_rad, return_distance=False)
     non_empty  = [idx for idx in idx_list if idx.size > 0]
     pm25_col   = df["pm25"].values
 
@@ -682,6 +691,8 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
             candidates.append((res[0], label))
 
     # ⑤ 評分 + 去重（距離差 < 50 m 視為同一路線）
+    # ★ 使用 SMART_SCORE_RADIUS_RAD（400 m）而非全域 6.4 km，
+    #   確保「走污染街道」vs「繞開後的替代道路」能得到不同分數
     scored: list = []
     seen_bins: set = set()
     for i, (osrm_r, strategy) in enumerate(candidates):
@@ -689,7 +700,10 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
         if bin_ in seen_bins:
             continue
         seen_bins.add(bin_)
-        scored.append(_score_route(osrm_r, f"route_{i}", strategy, df, tree, mode))
+        scored.append(
+            _score_route(osrm_r, f"route_{i}", strategy, df, tree, mode,
+                         score_radius_rad=SMART_SCORE_RADIUS_RAD)
+        )
 
     if not scored:
         raise HTTPException(status_code=500, detail="無法評估任何路線")
@@ -702,7 +716,26 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
     for i, res in enumerate(scored[:3]):
         res["is_ai_recommended"] = (i == 0 and res["data_coverage"] != "none")
 
-    return {"status": "success", "mode": mode, "results": scored[:3]}
+    # ── debug 欄位：前端可用來確認熱區偵測是否正常運作 ──────────────
+    debug_info = {
+        "score_radius_m":     SMART_SCORE_M,
+        "detour_offset_m":    DETOUR_OFFSET_M,
+        "hotspots_detected":  len(hotspots),
+        "hotspot_details": [
+            {"lat": round(h[0], 5), "lon": round(h[1], 5), "pm25": round(h[2], 1)}
+            for h in hotspots
+        ],
+        "detours_attempted":  len(detour_tasks),
+        "candidates_before_dedup": len(candidates),
+        "candidates_after_dedup":  len(scored),
+    }
+
+    return {
+        "status": "success",
+        "mode":   mode,
+        "debug":  debug_info,
+        "results": scored[:3],
+    }
 
 if __name__ == "__main__":
     import uvicorn
