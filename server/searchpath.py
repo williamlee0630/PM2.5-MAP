@@ -899,6 +899,67 @@ async def score_routes(request: Request, payload: ScoreRoutesRequest):
         "results": scored[:3],
     }
 
+
+# ═══════════════════════════════════════════════════════════════════
+# /api/town-geojson  ── 鄉鎮市區 GeoJSON Proxy
+# 從 g0v GitHub Raw 取得縣市 GeoJSON，後端快取後回傳給前端
+# 前端無法直接取得區級資料，改用此 proxy 繞過 CORS/403 限制
+# ═══════════════════════════════════════════════════════════════════
+_town_geojson_cache: dict = {"data": None, "updated_at": None}
+_TOWN_GEOJSON_TTL = timedelta(hours=24)   # GeoJSON 每日刷新即可
+
+@app.get("/api/town-geojson")
+@limiter.limit("30/minute")
+async def get_town_geojson(request: Request):
+    """
+    回傳台灣縣市 GeoJSON（前端用於點位→縣市反查）。
+    快取 24 小時，大幅降低對 GitHub Raw 的請求次數。
+    """
+    now = datetime.now()
+    if (
+        _town_geojson_cache["data"] is not None
+        and _town_geojson_cache["updated_at"] is not None
+        and (now - _town_geojson_cache["updated_at"]) < _TOWN_GEOJSON_TTL
+    ):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=_town_geojson_cache["data"])
+
+    GEOJSON_URL = (
+        "https://raw.githubusercontent.com/g0v/twgeojson/master/json/twCounty2010.geo.json"
+    )
+    try:
+        resp = await http_client.get(GEOJSON_URL, timeout=15.0)
+        resp.raise_for_status()
+        data = resp.json()
+        _town_geojson_cache["data"]       = data
+        _town_geojson_cache["updated_at"] = now
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"GeoJSON 來源無法存取：{str(e)}")
+
+
+@app.get("/api/point-to-district")
+@limiter.limit("60/minute")
+async def point_to_district(request: Request, lat: float, lon: float):
+    """
+    呼叫 NLSC 內政部 API 查詢點位所屬鄉鎮市區。
+    前端批次呼叫，取得每筆感測器資料的區級行政區名稱。
+    回傳格式：{"county": "台北市", "town": "士林區"}
+    """
+    url = f"https://api.nlsc.gov.tw/other/TownVillagePointQuery/{lon}/{lat}"
+    try:
+        resp = await http_client.get(url, timeout=5.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "county": data.get("ctyName", ""),
+                "town":   data.get("townName", ""),
+            }
+    except Exception:
+        pass
+    return {"county": "", "town": ""}
+
 if __name__ == "__main__":
     import uvicorn
     # NOTE: 請勿使用 --workers N (N>1)，本地快取為 process 獨立狀態。

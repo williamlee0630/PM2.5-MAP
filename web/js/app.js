@@ -180,29 +180,17 @@ function getCountyName(lon, lat, features) {
 // ── 懶載入台灣縣市 GeoJSON（僅首次呼叫時下載）─────────────────
 async function loadCountyGeoJSONIfNeeded() {
   if (countyGeoJSON) return true;
-  // 多層備援：任一來源成功即停止
-  // ① GitHub Raw 鄉鎮市區（最細）
-  // ② GitHub Raw 縣市層級（備援）
-  // ③ jsDelivr 縣市層級（最終備援）
-  const URLS = [
-    'https://raw.githubusercontent.com/g0v/twgeojson/master/json/twTown2010.geo.json',
-    'https://raw.githubusercontent.com/g0v/twgeojson/master/json/twCounty2010.geo.json',
-    'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json',
-  ];
-
-  for (const url of URLS) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      countyGeoJSON = await res.json();
-      console.log('GeoJSON 載入成功:', url);
-      return true;
-    } catch (e) {
-      console.warn(`GeoJSON 載入失敗 (${url}):`, e.message, '，嘗試下一個來源…');
-    }
+  // 從後端 proxy 取 GeoJSON（繞過 CORS/403，後端快取 24 小時）
+  try {
+    const res = await fetch('https://pm2-5-map.onrender.com/api/town-geojson');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    countyGeoJSON = await res.json();
+    console.log('GeoJSON 載入成功（後端 proxy）');
+    return true;
+  } catch (e) {
+    console.error('GeoJSON 後端 proxy 載入失敗:', e.message);
+    return false;
   }
-  console.error('所有 GeoJSON 來源皆無法存取，地區功能停用');
-  return false;
 }
 
 // ── 以快取+射線法查詢點位所屬縣市（精確到小數點後 4 位）──────────
@@ -215,13 +203,64 @@ function getPointCounty(lat, lon) {
   return result;
 }
 
-// ── 非同步將縣市名稱寫入 globalData._county，並更新地區篩選選單 ──
-async function enrichDataWithCounty() {
-  const ok = await loadCountyGeoJSONIfNeeded();
-  if (!ok) return;
-  globalData.forEach(d => {
-    if (!d._county) d._county = getPointCounty(d.latitude, d.longitude);
+
+// ── 批次查詢各感測點的鄉鎮市區（呼叫後端 NLSC proxy）───────────
+// 每次最多同時發 10 個請求，避免超出 API 速率限制
+const _districtCache = {};   // "lat,lon" → "士林區"
+
+async function fetchDistrictBatch(points) {
+  const BATCH = 10;
+  const todo = points.filter(p => {
+    const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
+    return _districtCache[key] === undefined;
   });
+
+  for (let i = 0; i < todo.length; i += BATCH) {
+    const chunk = todo.slice(i, i + BATCH);
+    await Promise.all(chunk.map(async (p) => {
+      const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
+      if (_districtCache[key] !== undefined) return;
+      try {
+        const res = await fetch(
+          `https://pm2-5-map.onrender.com/api/point-to-district?lat=${p.latitude}&lon=${p.longitude}`
+        );
+        const data = res.ok ? await res.json() : {};
+        // 優先顯示鄉鎮名（士林區），否則縣市名（台北市）
+        _districtCache[key] = data.town || data.county || '其他';
+      } catch {
+        _districtCache[key] = '其他';
+      }
+    }));
+  }
+}
+
+// ── 非同步查詢各點位所屬鄉鎮市區（後端 NLSC proxy）────────────
+async function enrichDataWithCounty() {
+  // 取未查詢的點位（用低精度 key 節省 API 呼叫次數）
+  const unresolved = globalData.filter(d => !d._county);
+  if (unresolved.length === 0) {
+    updateRegionFilter();
+    return;
+  }
+
+  // 去除重複座標（精確到小數點後 3 位 ≈ 111m）
+  const unique = [];
+  const seen   = new Set();
+  for (const d of unresolved) {
+    const key = `${parseFloat(d.latitude).toFixed(3)},${parseFloat(d.longitude).toFixed(3)}`;
+    if (!seen.has(key)) { seen.add(key); unique.push(d); }
+  }
+
+  await fetchDistrictBatch(unique);
+
+  // 把快取結果寫回 globalData
+  globalData.forEach(d => {
+    if (!d._county) {
+      const key = `${parseFloat(d.latitude).toFixed(3)},${parseFloat(d.longitude).toFixed(3)}`;
+      d._county = _districtCache[key] || '其他';
+    }
+  });
+
   updateRegionFilter();
 }
 
