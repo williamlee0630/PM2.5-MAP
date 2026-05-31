@@ -141,8 +141,8 @@ function formatTrendLabel(timestamp) {
 // 縣市反查工具（GeoJSON 點位→縣市名稱）
 // 供：地區篩選下拉、數據後台縣市欄位、CSV 下載
 // ══════════════════════════════════════════════════════════════
-let countyGeoJSON   = null;   // 快取的台灣縣市 GeoJSON
-let _countyCache    = {};     // { "lat,lon": "縣市名" } 避免重複運算
+let countyGeoJSON   = null;   // 快取的台灣鄉鎮市區 GeoJSON
+let _countyCache    = {};     // { "lat,lon": "區名" } 避免重複運算
 
 const COUNTY_GEOJSON_URL =
   'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json';
@@ -169,7 +169,8 @@ function getCountyName(lon, lat, features) {
     const polys = geo.type === 'MultiPolygon' ? geo.coordinates : [geo.coordinates];
     for (const poly of polys) {
       if (_pointInRing(pt, poly[0])) {
-        return f.properties.COUNTYNAME ?? f.properties.name ?? null;
+        // twTown 用 TOWNNAME（如「士林區」），縣市層級用 COUNTYNAME
+        return f.properties.TOWNNAME ?? f.properties.COUNTYNAME ?? f.properties.name ?? null;
       }
     }
   }
@@ -180,8 +181,9 @@ function getCountyName(lon, lat, features) {
 async function loadCountyGeoJSONIfNeeded() {
   if (countyGeoJSON) return true;
   try {
+    // twTown2010.geo.json：鄉鎮市區層級，可細分到「區」
     const res = await fetch(
-      'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json'
+      'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twTown2010.geo.json'
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     countyGeoJSON = await res.json();
@@ -251,6 +253,137 @@ function downloadCSV() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// === 地區 PM2.5 比較長條圖 ===
+let districtBarChart = null;
+
+function renderDistrictBar() {
+  if (globalData.length === 0) return;
+
+  // 彙總各區平均 PM2.5
+  const buckets = {};
+  globalData.forEach(d => {
+    const district = d._county;   // enrichDataWithCounty 存在 _county
+    if (!district || district === '載入中' || district === '其他') return;
+    if (!buckets[district]) buckets[district] = { sum: 0, count: 0 };
+    buckets[district].sum   += parseFloat(d.pm25) || 0;
+    buckets[district].count += 1;
+  });
+
+  if (Object.keys(buckets).length === 0) {
+    const ctx = document.getElementById('districtBarChart');
+    if (ctx) {
+      const p = ctx.parentElement.querySelector('.district-bar-notice');
+      if (!p) {
+        const notice = document.createElement('p');
+        notice.className = 'district-bar-notice';
+        notice.style.cssText = 'text-align:center;color:#aaa;padding:60px 0;font-size:14px;';
+        notice.textContent = '⏳ 縣市資料解析中，請稍候…';
+        ctx.parentElement.insertBefore(notice, ctx);
+      }
+    }
+    return;
+  }
+
+  // 依平均 PM2.5 降序排列
+  const sorted = Object.entries(buckets)
+    .map(([name, v]) => ({ name, avg: +(v.sum / v.count).toFixed(1), count: v.count }))
+    .sort((a, b) => b.avg - a.avg);
+
+  const labels     = sorted.map(d => d.name);
+  const values     = sorted.map(d => d.avg);
+  const counts     = sorted.map(d => d.count);
+  const bgColors   = values.map(v => {
+    if (v >= 150.5) return 'rgba(143,63,151,0.8)';
+    if (v >= 54.5)  return 'rgba(255,0,0,0.8)';
+    if (v >= 35.5)  return 'rgba(255,126,0,0.8)';
+    if (v >= 15.5)  return 'rgba(220,220,0,0.85)';
+    return 'rgba(0,200,0,0.8)';
+  });
+
+  if (districtBarChart) districtBarChart.destroy();
+  const ctx = document.getElementById('districtBarChart');
+  if (!ctx) return;
+
+  districtBarChart = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '平均 PM2.5（µg/m³）',
+        data: values,
+        backgroundColor: bgColors,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: '各行政區 PM2.5 平均濃度比較',
+          font: { size: 16 }
+        },
+        datalabels: {
+          anchor: 'end', align: 'end',
+          color: '#333',
+          font: { weight: 'bold', size: 11 },
+          formatter: (v, ctx) => {
+            const i = ctx.dataIndex;
+            return `${v}\n(${counts[i]}筆)`;
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              return [
+                `平均 PM2.5：${values[i]} µg/m³`,
+                `狀態：${getStatus(values[i])}`,
+                `感測筆數：${counts[i]} 筆`
+              ];
+            }
+          }
+        },
+        // 35.5 µg/m³ AQI 警戒線
+        annotation: undefined,
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: window.innerWidth <= 768 ? 10 : 13 } }
+        },
+        y: {
+          suggestedMin: 0,
+          suggestedMax: Math.max(...values, 60) * 1.15,
+          ticks: { callback: v => `${v}` },
+          // 手動畫警戒線用 afterDraw plugin
+        }
+      }
+    },
+    plugins: [{
+      id: 'aqiLine',
+      afterDraw(chart) {
+        const { ctx, scales: { y } } = chart;
+        const yPx355 = y.getPixelForValue(35.5);
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = '#ff7e00';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(chart.chartArea.left, yPx355);
+        ctx.lineTo(chart.chartArea.right, yPx355);
+        ctx.stroke();
+        ctx.fillStyle = '#ff7e00';
+        ctx.font = 'bold 11px "Microsoft JhengHei",sans-serif';
+        ctx.fillText('敏感族群警戒 35.5', chart.chartArea.right - 145, yPx355 - 5);
+        ctx.restore();
+      }
+    }]
+  });
 }
 
 // === 圖表渲染主函式 ===
@@ -481,6 +614,9 @@ function fetchData(isAuto = false) {
         renderCharts();
         // 重繪表格（縣市欄位現在有值了）
         rebuildTable();
+        // 地區長條圖分頁（預設顯示）：縣市解析完成後一定渲染
+        const _dPanel = document.getElementById('chart-panel-district');
+        if (_dPanel && _dPanel.classList.contains('active')) renderDistrictBar();
       });
 
       // 先用現有資料渲染表格（縣市欄可能還是「載入中」）

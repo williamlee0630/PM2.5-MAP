@@ -534,11 +534,12 @@
       <div class="charts-wrapper">
         
         <div class="chart-tabs">
-          <button class="chart-tab active" onclick="switchChartTab('trend', this)"><span class="material-symbols-outlined">show_chart</span> 濃度趨勢折線圖</button>
+          <button class="chart-tab active" onclick="switchChartTab('district', this)"><span class="material-symbols-outlined">bar_chart</span> 地區比較長條圖</button>
+          <button class="chart-tab" onclick="switchChartTab('trend', this)"><span class="material-symbols-outlined">show_chart</span> 濃度趨勢折線圖</button>
           <button class="chart-tab" onclick="switchChartTab('pie', this)"><span class="material-symbols-outlined">pie_chart</span> 總體狀態圓餅圖</button>
         </div>
 
-        <div id="chart-panel-trend" class="chart-panel active">
+        <div id="chart-panel-trend" class="chart-panel">
           <div class="chart-controls">
             <label for="pm25TrendFilter"><span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span> 狀態篩選：</label>
             <select id="pm25TrendFilter" onchange="renderCharts()">
@@ -561,7 +562,7 @@
               <!-- 選項由 app.js updateDateFilter() 動態填入 -->
             </select>
 
-            <label for="chartRegionFilter"><span class="material-symbols-outlined" style="font-size: 18px;">location_on</span> 地區：</label>
+            <label for="chartRegionFilter"><span class="material-symbols-outlined" style="font-size: 18px;">location_on</span> 行政區：</label>
             <select id="chartRegionFilter" onchange="renderCharts()">
               <option value="all">全部地區</option>
               <!-- 選項由 app.js updateRegionFilter() 動態填入 -->
@@ -583,7 +584,17 @@
           </div>
         </div>
 
-
+        <!-- ★ 地區 PM2.5 比較長條圖 -->
+        <div id="chart-panel-district" class="chart-panel active">
+          <div style="font-size:13px;color:#5f6368;margin-bottom:10px;">
+            依感測器所在行政區彙總 PM2.5 平均值，由高至低排列。橘色虛線為敏感族群警戒線（35.5 µg/m³）。點擊分頁時自動計算，約需 3–5 秒完成縣市解析。
+          </div>
+          <div class="chart-card" style="height:420px;">
+            <canvas id="districtBarChart" aria-label="各行政區 PM2.5 平均濃度比較長條圖" role="img">
+              <p>您的瀏覽器不支援圖表顯示，此處為各行政區 PM2.5 平均濃度比較長條圖。</p>
+            </canvas>
+          </div>
+        </div>
 
       </div>
     </div>
