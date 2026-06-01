@@ -636,7 +636,7 @@
               <div class="setting-info-title">僅顯示空污熱區 (橘色等級以上)</div>
               <div class="setting-info-desc">過濾掉空氣品質良好與普通的點位，僅在地圖上呈現 PM2.5 超過 35.4 µg/m³ 的警示區域。</div>
             </div>
-            <input type="checkbox" id="setting-hotspots" class="setting-checkbox" checked onchange="refreshData()">
+            <input type="checkbox" id="setting-hotspots" class="setting-checkbox" onchange="refreshData()">
           </div>
 
           <div class="setting-row">
@@ -652,9 +652,9 @@
                     onchange="applyMapHoursSetting(this.value)">
               <option value="2">最近 2 小時</option>
               <option value="6">最近 6 小時</option>
-              <option value="24" selected>最近 24 小時</option>
+              <option value="24">最近 24 小時</option>
               <option value="48">最近 48 小時</option>
-              <option value="168">最近 7 天（全部）</option>
+              <option value="168" selected>最近 7 天（全部）</option>
             </select>
           </div>
         </div>

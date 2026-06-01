@@ -52,7 +52,9 @@ function addMarkerToMap(point, isLatest = false) {
   const showHotspotsOnly = document.getElementById('setting-hotspots').checked;
 
   if (isLatest) latestLatLng = [point.latitude, point.longitude];
-  if (showHotspotsOnly && pm25Val < 35.5) return;
+  // ★ 無論是否過濾，都先加入 bounds（讓 fitBounds 能縮放到資料所在位置）
+  bounds.push([point.latitude, point.longitude]);
+  if (showHotspotsOnly && pm25Val < 35.5) return;   // 只過濾繪製，不過濾 bounds
 
   const marker = L.circleMarker([point.latitude, point.longitude], {
     radius: 8, color: '#ffffff', weight: 1,
@@ -130,7 +132,9 @@ function addAggregatedMarkersToMap(dataArray) {
   for (const pt of aggregated) {
     const avg = pt.pm25Avg;
     const max = pt.pm25Max;
-    if (showHotspotsOnly && avg < 35.5) continue;
+    // ★ 無論是否過濾，先加入 bounds
+    bounds.push([pt.latitude, pt.longitude]);
+    if (showHotspotsOnly && avg < 35.5) continue;   // 只過濾繪製，不過濾 bounds
 
     // 圓點半徑：基礎 8，每筆 +0.5，上限 18
     const radius = Math.min(8 + (pt.count - 1) * 0.5, 18);
@@ -207,9 +211,18 @@ function refreshMapLayout() {
     const autoTrack = document.getElementById('setting-autotrack').checked;
     if (autoTrack && latestLatLng) {
       map.flyTo(latestLatLng, 16, { animate: true, duration: 1.2 });
-    } else if (!mapInitialized && bounds.length > 0) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
-      mapInitialized = true;
+    } else if (bounds.length > 0) {
+      if (!mapInitialized) {
+        // 第一次載入：完整 fitBounds
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        mapInitialized = true;
+      } else {
+        const currentZoom = map.getZoom();
+        // 地圖目前太遠（縮放 < 11 表示看不清個別點），自動縮進去
+        if (currentZoom < 11) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        }
+      }
     }
-  }, 100);
+  }, 150);
 }
