@@ -1092,6 +1092,43 @@ async def batch_districts(request: Request, payload: BatchDistrictsRequest):
         results[f"{c.lat},{c.lon}"] = name
     return {"results": results}
 
+
+# ═══════════════════════════════════════════════════════════════════
+# /api/weather  ── 天氣資料 Proxy（繞過前端 CORS 限制）
+# ═══════════════════════════════════════════════════════════════════
+@app.get("/api/weather")
+@limiter.limit("30/minute")
+async def get_weather(request: Request):
+    """
+    從 open-meteo 取得台北即時天氣，後端 proxy 給前端使用。
+    open-meteo 在部分 CDN/邊緣節點沒有回傳 CORS header，
+    由後端呼叫可完全繞開此限制。快取 10 分鐘。
+    """
+    # 簡單記憶體快取（10 分鐘），避免每個使用者都打一次 open-meteo
+    _wc: dict = getattr(get_weather, "_cache", {})
+    get_weather._cache = _wc
+    now_ts = datetime.now().timestamp()
+    if _wc.get("data") and now_ts - _wc.get("ts", 0) < 600:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=_wc["data"])
+
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        "?latitude=25.0330&longitude=121.5654"
+        "&current=temperature_2m,wind_speed_10m,weather_code"
+        "&timezone=Asia%2FTaipei"
+    )
+    try:
+        resp = await http_client.get(url, timeout=8.0)
+        resp.raise_for_status()
+        data = resp.json()
+        _wc["data"] = data
+        _wc["ts"]   = now_ts
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"天氣資料無法取得：{str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     # NOTE: 請勿使用 --workers N (N>1)，本地快取為 process 獨立狀態。

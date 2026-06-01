@@ -5,7 +5,9 @@ const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=
 // ── 地圖顯示時間視窗（使用者可在設定頁調整）─────────────────────
 // 預設只顯示最近 24 小時的點，避免地圖點爆炸
 // 原始資料仍完整存在（折線圖、下載、導航評分都用完整資料）
-let MAP_DISPLAY_HOURS = parseInt(localStorage.getItem('mapDisplayHours') ?? '24', 10);
+// 預設 168h（7 天）= 原始 Sheet 的保留上限，確保有資料可以顯示
+// 策略 B 執行後原始 Sheet 只有 7 天資料，所以「全部顯示」等同於 7 天
+let MAP_DISPLAY_HOURS = parseInt(localStorage.getItem('mapDisplayHours') ?? '168', 10);
 
 function getMapCutoffTime() {
   return Date.now() - MAP_DISPLAY_HOURS * 60 * 60 * 1000;
@@ -55,7 +57,8 @@ async function updateDynamicText(data) {
   if (summaryEl) summaryEl.innerHTML = aiSummary;
 
   try {
-    const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&current=temperature_2m,wind_speed_10m,weather_code&timezone=Asia%2FTaipei');
+    // open-meteo 在部分 CDN 有 CORS 問題，改走 Render 後端 proxy
+    const weatherRes = await fetch('https://pm2-5-map.onrender.com/api/weather');
     const weatherData = await weatherRes.json();
     const current = weatherData.current;
     
@@ -631,27 +634,28 @@ function rebuildTable() {
   tableBody.innerHTML = '';
   const reversedData = [...globalData].reverse();
 
-  // ── 地圖只畫時間視窗內的點（預設 24 小時），表格顯示所有資料 ──
-  // 收集時間視窗內的資料，交給 map.js 的 renderMapMarkers 統一處理
+  // ── 地圖只畫時間視窗內的點（預設 7 天），表格顯示所有資料 ──
   const cutoff     = getMapCutoffTime();
   const windowData = globalData.filter(d => {
     const t = new Date(d.timestamp).getTime();
     return !isNaN(t) && t >= cutoff;
   });
 
-  // 在迴圈前先呼叫聚合/原始繪製（map.js 會自己 clearMapMarkers）
+  // 地圖繪製：優先用新版 renderMapMarkers（聚合/原始模式）
+  // 若新版 map.js 尚未部署，自動降級為直接呼叫 addMarkerToMap
   if (typeof renderMapMarkers === 'function') {
     renderMapMarkers(windowData);
+  } else {
+    // 降級模式：直接逐點繪製（舊版 map.js 相容）
+    clearMapMarkers();
+    windowData.forEach((point, index) => addMarkerToMap(point, index === 0));
+  }
+  // 有資料時重新 fitBounds，確保地圖縮放到資料所在範圍
+  if (windowData.length > 0 && document.getElementById('view-map').classList.contains('active')) {
+    refreshMapLayout();
   }
 
   reversedData.forEach(function(point, index) {
-    // 地圖點已由 renderMapMarkers 統一處理，此處只更新 latestLatLng
-    const t = new Date(point.timestamp).getTime();
-    const inWindow = !isNaN(t) && t >= cutoff;
-    if (inWindow && index === 0 && typeof latestLatLng !== 'undefined') {
-      // latestLatLng 在 map.js 的 renderMapMarkers 裡已設定，這裡不重複設
-    }
-    if (false) addMarkerToMap(point, index === 0); // 保留行，避免 linter 警告
     const pm25Val  = point.pm25;
     const statusTxt = getStatus(pm25Val);
     const colorHex  = getColor(pm25Val);
