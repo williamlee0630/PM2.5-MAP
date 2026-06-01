@@ -632,13 +632,26 @@ function rebuildTable() {
   const reversedData = [...globalData].reverse();
 
   // ── 地圖只畫時間視窗內的點（預設 24 小時），表格顯示所有資料 ──
-  const cutoff = getMapCutoffTime();
+  // 收集時間視窗內的資料，交給 map.js 的 renderMapMarkers 統一處理
+  const cutoff     = getMapCutoffTime();
+  const windowData = globalData.filter(d => {
+    const t = new Date(d.timestamp).getTime();
+    return !isNaN(t) && t >= cutoff;
+  });
+
+  // 在迴圈前先呼叫聚合/原始繪製（map.js 會自己 clearMapMarkers）
+  if (typeof renderMapMarkers === 'function') {
+    renderMapMarkers(windowData);
+  }
 
   reversedData.forEach(function(point, index) {
-    // 地圖點：只加入時間視窗內的資料
+    // 地圖點已由 renderMapMarkers 統一處理，此處只更新 latestLatLng
     const t = new Date(point.timestamp).getTime();
     const inWindow = !isNaN(t) && t >= cutoff;
-    if (inWindow) addMarkerToMap(point, index === 0);
+    if (inWindow && index === 0 && typeof latestLatLng !== 'undefined') {
+      // latestLatLng 在 map.js 的 renderMapMarkers 裡已設定，這裡不重複設
+    }
+    if (false) addMarkerToMap(point, index === 0); // 保留行，避免 linter 警告
     const pm25Val  = point.pm25;
     const statusTxt = getStatus(pm25Val);
     const colorHex  = getColor(pm25Val);

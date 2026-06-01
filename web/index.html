@@ -616,6 +616,23 @@
 
           <div class="setting-row">
             <div class="setting-info">
+              <div class="setting-info-title">地圖點位顯示模式</div>
+              <div class="setting-info-desc">
+                <strong>聚合模式（預設）：</strong>將 ±111m 內的相近點合併，圓圈大小代表樣本數，
+                橙色紅框代表該位置出現過峰值警示。適合觀察整體空間分布。<br>
+                <strong>原始模式：</strong>每筆感測資料各自顯示，可看出採樣密度與真實軌跡。
+              </div>
+            </div>
+            <select id="setting-map-mode"
+                    style="width:auto;padding:4px 8px;font-size:14px;cursor:pointer;accent-color:#837b5a;"
+                    onchange="setMapDisplayMode(this.value)">
+              <option value="aggregate">聚合模式</option>
+              <option value="raw">原始模式</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
               <div class="setting-info-title">僅顯示空污熱區 (橘色等級以上)</div>
               <div class="setting-info-desc">過濾掉空氣品質良好與普通的點位，僅在地圖上呈現 PM2.5 超過 35.4 µg/m³ 的警示區域。</div>
             </div>
@@ -676,10 +693,16 @@
 
     // 頁面載入時還原上次設定的時間視窗
     document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('mapDisplayHours');
-      if (saved) {
+      const savedHours = localStorage.getItem('mapDisplayHours');
+      if (savedHours) {
         const sel = document.getElementById('setting-map-hours');
-        if (sel) sel.value = saved;
+        if (sel) sel.value = savedHours;
+      }
+      // 還原地圖模式設定
+      const savedMode = localStorage.getItem('mapDisplayMode');
+      if (savedMode) {
+        const modeSel = document.getElementById('setting-map-mode');
+        if (modeSel) modeSel.value = savedMode;
       }
     });
 

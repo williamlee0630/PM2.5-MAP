@@ -860,13 +860,32 @@ async def score_routes(request: Request, payload: ScoreRoutesRequest):
         non_empty  = [idx for idx in idx_list if idx.size > 0]
 
         if non_empty:
-            uid      = np.unique(np.concatenate(non_empty))
-            uid      = uid[uid < len(pm25_col)]
-            pm_vals  = pm25_col[uid]
-            avg_pm25 = float(np.mean(pm_vals))
-            max_pm25 = float(np.max(pm_vals))
-            cov      = sum(1 for idx in idx_list if idx.size > 0) / max(len(sample_rad), 1)
-            data_cov = "full" if cov >= 0.8 else ("partial" if cov >= 0.3 else "sparse")
+            uid_raw = np.unique(np.concatenate(non_empty))
+            uid_raw = uid_raw[uid_raw < len(pm25_col)]
+
+            # ── [B] 空間去重：以 0.001°(≈111m) 格子聚合相近感測點 ──
+            # 車子停在同一紅燈產生多筆資料，聚合後每格只算一個代表值，
+            # 避免單一密集採樣點對整條路線分數過度加權。
+            sensor_lats = df["latitude"].values
+            sensor_lons = df["longitude"].values
+            grid_vals: dict = {}
+            for i in uid_raw:
+                grid_key = (
+                    round(float(sensor_lats[i]), 3),
+                    round(float(sensor_lons[i]), 3)
+                )
+                if grid_key not in grid_vals:
+                    grid_vals[grid_key] = []
+                grid_vals[grid_key].append(float(pm25_col[i]))
+
+            # 每格取平均，再彙整成最終評分用的值
+            cell_avgs = np.array([np.mean(v) for v in grid_vals.values()])
+            avg_pm25  = float(np.mean(cell_avgs))
+            max_pm25  = float(np.max(cell_avgs))   # 各格均值的最大值（非原始峰值）
+            # ── 覆蓋率改用格子數 ──
+            covered   = sum(1 for idx in idx_list if idx.size > 0)
+            cov       = covered / max(len(sample_rad), 1)
+            data_cov  = "full" if cov >= 0.8 else ("partial" if cov >= 0.3 else "sparse")
         else:
             avg_pm25 = float(df["pm25"].mean())
             max_pm25 = float(df["pm25"].max())
