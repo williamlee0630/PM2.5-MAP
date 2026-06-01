@@ -2,6 +2,15 @@
 const sheetId = '1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ';
 const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
+// ── 地圖顯示時間視窗（使用者可在設定頁調整）─────────────────────
+// 預設只顯示最近 24 小時的點，避免地圖點爆炸
+// 原始資料仍完整存在（折線圖、下載、導航評分都用完整資料）
+let MAP_DISPLAY_HOURS = parseInt(localStorage.getItem('mapDisplayHours') ?? '24', 10);
+
+function getMapCutoffTime() {
+  return Date.now() - MAP_DISPLAY_HOURS * 60 * 60 * 1000;
+}
+
 // 註冊 DataLabels 套件 (為了圓餅圖顯示百分比)
 Chart.register(ChartDataLabels);
 
@@ -621,8 +630,15 @@ function rebuildTable() {
 
   tableBody.innerHTML = '';
   const reversedData = [...globalData].reverse();
+
+  // ── 地圖只畫時間視窗內的點（預設 24 小時），表格顯示所有資料 ──
+  const cutoff = getMapCutoffTime();
+
   reversedData.forEach(function(point, index) {
-    addMarkerToMap(point, index === 0);
+    // 地圖點：只加入時間視窗內的資料
+    const t = new Date(point.timestamp).getTime();
+    const inWindow = !isNaN(t) && t >= cutoff;
+    if (inWindow) addMarkerToMap(point, index === 0);
     const pm25Val  = point.pm25;
     const statusTxt = getStatus(pm25Val);
     const colorHex  = getColor(pm25Val);
