@@ -150,14 +150,12 @@ function formatTrendLabel(timestamp) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 縣市反查工具（GeoJSON 點位→縣市名稱）
-// 供：地區篩選下拉、數據後台縣市欄位、CSV 下載
+// 縣市反查工具（使用自己 Repo 內的精確 GeoJSON）
+// 來源：web/data/twTown.geojson（內政部國土測繪中心，368 個鄉鎮市區）
+// 精度：真正多邊形查詢 ±11m，遠優於邊界框的 ±500m
 // ══════════════════════════════════════════════════════════════
-let countyGeoJSON   = null;   // 快取的台灣鄉鎮市區 GeoJSON
-let _countyCache    = {};     // { "lat,lon": "區名" } 避免重複運算
-
-const COUNTY_GEOJSON_URL =
-  'https://cdn.jsdelivr.net/gh/g0v/twgeojson@master/json/twCounty2010.geo.json';
+let countyGeoJSON = null;   // 快取 twTown.geojson（載入後常駐記憶體）
+let _countyCache  = {};     // { "lat4,lon4": "士林區" } 避免重複計算
 
 // ── 射線法：判斷點 [x,y] 是否在多邊形環內 ───────────────────────
 function _pointInRing([x, y], ring) {
@@ -172,7 +170,7 @@ function _pointInRing([x, y], ring) {
   return inside;
 }
 
-// ── 找出座標 (lon, lat) 屬於哪個縣市 ────────────────────────────
+// ── 多邊形查詢：找出座標 (lon, lat) 屬於哪個行政區 ───────────────
 function getCountyName(lon, lat, features) {
   const pt = [lon, lat];
   for (const f of features) {
@@ -181,31 +179,31 @@ function getCountyName(lon, lat, features) {
     const polys = geo.type === 'MultiPolygon' ? geo.coordinates : [geo.coordinates];
     for (const poly of polys) {
       if (_pointInRing(pt, poly[0])) {
-        // twTown 用 TOWNNAME（如「士林區」），縣市層級用 COUNTYNAME
-        return f.properties.TOWNNAME ?? f.properties.COUNTYNAME ?? f.properties.name ?? null;
+        // twTown.geojson 使用 TOWNNAME（士林區）
+        return f.properties.TOWNNAME ?? f.properties.COUNTYNAME ?? null;
       }
     }
   }
   return null;
 }
 
-// ── 懶載入台灣縣市 GeoJSON（僅首次呼叫時下載）─────────────────
+// ── 懶載入 twTown.geojson（首次呼叫時從 Vercel 靜態資源載入）─────
 async function loadCountyGeoJSONIfNeeded() {
   if (countyGeoJSON) return true;
-  // 從後端 proxy 取 GeoJSON（繞過 CORS/403，後端快取 24 小時）
   try {
-    const res = await fetch('https://pm2-5-map.onrender.com/api/town-geojson');
+    // /data/twTown.geojson 由 Vercel 直接 serve，無 CORS 問題
+    const res = await fetch('/data/twTown.geojson');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     countyGeoJSON = await res.json();
-    console.log('GeoJSON 載入成功（後端 proxy）');
+    console.log(`✅ twTown.geojson 載入成功（${countyGeoJSON.features.length} 個行政區）`);
     return true;
   } catch (e) {
-    console.error('GeoJSON 後端 proxy 載入失敗:', e.message);
+    console.error('twTown.geojson 載入失敗:', e.message);
     return false;
   }
 }
 
-// ── 以快取+射線法查詢點位所屬縣市（精確到小數點後 4 位）──────────
+// ── 同步查詢點位所屬行政區（需先確認 GeoJSON 已載入）─────────────
 function getPointCounty(lat, lon) {
   if (!countyGeoJSON) return '載入中';
   const key = `${parseFloat(lat).toFixed(4)},${parseFloat(lon).toFixed(4)}`;
@@ -215,80 +213,15 @@ function getPointCounty(lat, lon) {
   return result;
 }
 
-
-// ── 批次查詢各感測點的鄉鎮市區（單一 POST，後端一次回傳）────────
-// 前端不再逐點打 API，改為收集所有未查詢座標後一次送出，
-// 完全避免 429 速率超限問題。
-const _districtCache = {};   // "lat3,lon3" → "士林區"
-
-async function fetchDistrictBatch(points) {
-  // 找出尚未查詢過的唯一座標
-  const todo = [];
-  const seen = new Set();
-  for (const p of points) {
-    const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
-    if (_districtCache[key] === undefined && !seen.has(key)) {
-      seen.add(key);
-      todo.push(p);
-    }
-  }
-  if (todo.length === 0) return;
-
-  // 一次 POST 送所有未查詢座標（後端並發查 NLSC，單次回傳）
-  const coordinates = todo.map(p => ({
-    lat: parseFloat(p.latitude),
-    lon: parseFloat(p.longitude)
-  }));
-
-  try {
-    const res = await fetch('https://pm2-5-map.onrender.com/api/batch-districts', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ coordinates }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    // 把結果寫入快取（鍵為 3 位精度）
-    for (const [rawKey, name] of Object.entries(data.results ?? {})) {
-      const [lat, lon] = rawKey.split(',');
-      const cacheKey = `${parseFloat(lat).toFixed(3)},${parseFloat(lon).toFixed(3)}`;
-      _districtCache[cacheKey] = name;
-    }
-  } catch (e) {
-    console.error('batch-districts 查詢失敗:', e.message);
-    // 失敗時把這批標記為「其他」，不阻塞後續流程
-    for (const p of todo) {
-      const key = `${parseFloat(p.latitude).toFixed(3)},${parseFloat(p.longitude).toFixed(3)}`;
-      _districtCache[key] = '其他';
-    }
-  }
-}
-
-// ── 非同步查詢各點位所屬鄉鎮市區（後端 NLSC proxy）────────────
+// ── 非同步富集所有點位的行政區名稱 ──────────────────────────────
 async function enrichDataWithCounty() {
-  // 取未查詢的點位（用低精度 key 節省 API 呼叫次數）
-  const unresolved = globalData.filter(d => !d._county);
-  if (unresolved.length === 0) {
-    updateRegionFilter();
-    return;
-  }
+  const ok = await loadCountyGeoJSONIfNeeded();
+  if (!ok) return;
 
-  // 去除重複座標（精確到小數點後 3 位 ≈ 111m）
-  const unique = [];
-  const seen   = new Set();
-  for (const d of unresolved) {
-    const key = `${parseFloat(d.latitude).toFixed(3)},${parseFloat(d.longitude).toFixed(3)}`;
-    if (!seen.has(key)) { seen.add(key); unique.push(d); }
-  }
-
-  await fetchDistrictBatch(unique);
-
-  // 把快取結果寫回 globalData
+  // 只處理尚未查詢的點（不重複計算，不阻塞 10 秒更新）
   globalData.forEach(d => {
     if (!d._county) {
-      const key = `${parseFloat(d.latitude).toFixed(3)},${parseFloat(d.longitude).toFixed(3)}`;
-      d._county = _districtCache[key] || '其他';
+      d._county = getPointCounty(d.latitude, d.longitude);
     }
   });
 
