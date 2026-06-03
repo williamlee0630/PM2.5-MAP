@@ -270,30 +270,58 @@ async def geocode_address(request: Request, q: str):
     except Exception as e:
         print(f"Redis geocode 快取讀取失敗，略過快取: {str(e)}")
 
-    # ── 第一層：Google Maps Geocoding API ──
-    # [修正③] 額外 strip() 確保空白字串不被當作有效 key
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
+
+    # ── 第一層：Google Places Text Search API（支援店名、地標、關鍵字）──
+    # Places API 比 Geocoding API 更強，能找「AK house麻將」這類店名
     if GOOGLE_MAPS_API_KEY:
         try:
-            url = "https://maps.googleapis.com/maps/api/geocode/json"
+            url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
             params = {
-                "address": query,
-                "key": GOOGLE_MAPS_API_KEY,
+                "query":    query,
+                "key":      GOOGLE_MAPS_API_KEY,
                 "language": "zh-TW",
-                "region": "tw",
+                "region":   "tw",
             }
             response = await http_client.get(url, params=params)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "OK" and data.get("results"):
                     location = data["results"][0]["geometry"]["location"]
-                    result = {"lat": location["lat"], "lon": location["lng"], "source": "google"}
+                    name     = data["results"][0].get("name", "")
+                    result   = {
+                        "lat":    location["lat"],
+                        "lon":    location["lng"],
+                        "source": "google_places",
+                        "name":   name,
+                    }
+                    await _try_cache_set(cache_key, result, ex=86400)
+                    return result
+        except Exception as e:
+            print(f"Google Places 服務異常，切換至 Geocoding API: {str(e)}")
+
+    # ── 第二層：Google Maps Geocoding API（地址查詢備援）──
+    if GOOGLE_MAPS_API_KEY:
+        try:
+            url = "https://maps.googleapis.com/maps/api/geocode/json"
+            params = {
+                "address":  query,
+                "key":      GOOGLE_MAPS_API_KEY,
+                "language": "zh-TW",
+                "region":   "tw",
+            }
+            response = await http_client.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "OK" and data.get("results"):
+                    location = data["results"][0]["geometry"]["location"]
+                    result   = {"lat": location["lat"], "lon": location["lng"], "source": "google"}
                     await _try_cache_set(cache_key, result, ex=86400)
                     return result
         except Exception as e:
             print(f"Google Geocoding 服務異常，切換至備援引擎: {str(e)}")
 
-    # ── 第二層：ArcGIS REST API ──
+    # ── 第三層：ArcGIS REST API ──
     try:
         arcgis_url = (
             "https://geocode.arcgis.com/arcgis/rest/services"
@@ -317,7 +345,7 @@ async def geocode_address(request: Request, q: str):
     except Exception as e:
         print(f"ArcGIS Geocoding 服務異常，切換至最終備援引擎: {str(e)}")
 
-    # ── 第三層：Photon API（OpenStreetMap）──
+    # ── 第四層：Photon API（OpenStreetMap）──
     try:
         photon_url = "https://photon.komoot.io/api/"
         params = {"q": query, "limit": 1, "lang": "en"}
