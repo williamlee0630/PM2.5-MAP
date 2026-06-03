@@ -773,6 +773,41 @@ async def smart_route(request: Request, payload: SmartRouteRequest):
     }
 
 
+
+# ═══════════════════════════════════════════════════════════════════
+# _snap_to_road：把偏移 Waypoint 吸附到最近的實際道路節點
+# 解決偏移點落在山區/公園造成 OSRM 繞遠路的問題
+# ═══════════════════════════════════════════════════════════════════
+async def _snap_to_road(lat: float, lon: float, mode: str = "driving") -> Optional[tuple]:
+    """
+    呼叫 OSRM /nearest，把任意座標吸附到最近的可行道路節點。
+
+    規則：
+    - 若最近道路 ≤ 300m → 回傳吸附後的座標
+    - 若最近道路 > 300m → 回傳 None（附近沒路，放棄此 Waypoint）
+
+    這樣可確保繞路 Waypoint 一定落在真實道路上，
+    OSRM 就不需要繞遠路去接一個在山上的點。
+    """
+    url = (
+        f"https://router.project-osrm.org/nearest/v1/{mode}"
+        f"/{lon},{lat}?number=1"
+    )
+    try:
+        resp = await http_client.get(url, timeout=5.0)
+        data = resp.json()
+        if data.get("code") == "Ok" and data.get("waypoints"):
+            wp   = data["waypoints"][0]
+            dist = wp.get("distance", 9999)
+            if dist <= 300:   # 300m 以內才算有效道路節點
+                snapped_lon, snapped_lat = wp["location"]
+                return (round(snapped_lat, 6), round(snapped_lon, 6))
+            else:
+                print(f"  _snap_to_road: ({lat},{lon}) 最近道路 {dist:.0f}m > 300m，放棄此 Waypoint")
+    except Exception as e:
+        print(f"  _snap_to_road 失敗 ({lat},{lon}): {e}")
+    return None
+
 # ═══════════════════════════════════════════════════════════════════
 # /api/detect-hotspots  ── 步驟①後端
 # 接收前端已取得的路線座標，回傳高污染熱區與繞路 waypoints
@@ -791,19 +826,41 @@ async def detect_hotspots(request: Request, payload: DetectHotspotsRequest):
     route_latlon = [[c.lat, c.lon] for c in payload.coordinates]
     hotspots     = _find_hotspots(route_latlon, df, tree)
 
-    waypoints = []
+    # ① 產生原始偏移 Waypoints
+    raw_waypoints = []
     for c_lat, c_lon, pm_val in hotspots:
         for side, label in [(1, "detour_clean_A"), (-1, "detour_clean_B")]:
             wp = _make_detour_waypoint(
                 route_latlon, c_lat, c_lon, DETOUR_OFFSET_M, side
             )
             if wp:
-                waypoints.append({
-                    "lat":   wp[0],
-                    "lon":   wp[1],
-                    "label": label,
+                raw_waypoints.append({
+                    "lat":       wp[0],
+                    "lon":       wp[1],
+                    "label":     label,
                     "near_pm25": round(pm_val, 1),
                 })
+
+    # ② 並發呼叫 OSRM /nearest，把偏移點吸附到最近的真實道路
+    # 若偏移點落在山區/公園（最近道路 > 300m），直接捨棄該 Waypoint
+    snap_results = await asyncio.gather(*[
+        _snap_to_road(w["lat"], w["lon"], payload.mode)
+        for w in raw_waypoints
+    ], return_exceptions=True)
+
+    waypoints = []
+    for raw_wp, snapped in zip(raw_waypoints, snap_results):
+        if isinstance(snapped, Exception) or snapped is None:
+            print(f"  Waypoint ({raw_wp['lat']},{raw_wp['lon']}) 無法吸附到道路，已捨棄")
+            continue
+        waypoints.append({
+            "lat":       snapped[0],
+            "lon":       snapped[1],
+            "label":     raw_wp["label"],
+            "near_pm25": raw_wp["near_pm25"],
+        })
+
+    print(f"  detect_hotspots: {len(raw_waypoints)} 個原始 Waypoint → {len(waypoints)} 個有效道路節點")
 
     return {
         "status":              "success",
