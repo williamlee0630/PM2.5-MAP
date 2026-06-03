@@ -853,13 +853,22 @@
           );
           const detourResults = await Promise.allSettled(detourPromises);
 
+          const directDistM = allRoutes[0]?.distM ?? allRoutes[0]?.latLonPairs?.length ?? 0;
+
           detourResults.forEach((result, idx) => {
             if (result.status !== 'fulfilled' || !result.value?.length) return;
-            const wp = waypoints[idx];
-            const rid = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
-            // 去重：距離差 < 50m 視為同一路線
+            const wp   = waypoints[idx];
+            const rid  = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
             const distM = result.value[0].distance ?? 0;
-            const alreadyHas = allRoutes.some(r => Math.abs(r.distM - distM) < 50);
+
+            // ★ 排除「繞路距離 > 直行 1.5 倍」的路線（山路、繞遠路）
+            if (directDistM > 0 && distM > directDistM * 1.5) {
+              console.log(`捨棄過長繞路：${(distM/1000).toFixed(1)}km vs 直行 ${(directDistM/1000).toFixed(1)}km`);
+              return;
+            }
+
+            // 去重：距離差 < 100m 視為同一路線
+            const alreadyHas = allRoutes.some(r => Math.abs((r.distM ?? 0) - distM) < 100);
             if (!alreadyHas) {
               allRoutes.push({
                 route_id: rid,

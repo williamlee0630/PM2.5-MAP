@@ -799,11 +799,11 @@ async def _snap_to_road(lat: float, lon: float, mode: str = "driving") -> Option
         if data.get("code") == "Ok" and data.get("waypoints"):
             wp   = data["waypoints"][0]
             dist = wp.get("distance", 9999)
-            if dist <= 300:   # 300m 以內才算有效道路節點
+            if dist <= 80:    # 80m 以內才算有效道路（排除山路）
                 snapped_lon, snapped_lat = wp["location"]
                 return (round(snapped_lat, 6), round(snapped_lon, 6))
             else:
-                print(f"  _snap_to_road: ({lat},{lon}) 最近道路 {dist:.0f}m > 300m，放棄此 Waypoint")
+                print(f"  _snap_to_road: ({lat},{lon}) 最近道路 {dist:.0f}m > 80m，放棄此 Waypoint（山路）")
     except Exception as e:
         print(f"  _snap_to_road 失敗 ({lat},{lon}): {e}")
     return None
