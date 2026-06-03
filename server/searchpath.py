@@ -90,8 +90,8 @@ HOTSPOT_RADIUS_RAD = HOTSPOT_SEARCH_M / 6_371_000
 # 超過此 PM2.5 閾值才觸發繞路邏輯
 DETOUR_THRESHOLD_PM25 = 35.5
 
-# 繞路偏移量（公尺）★ 400 → 800：確保 Waypoint 能真正逃出污染熱區
-DETOUR_OFFSET_M = 800
+# 繞路偏移量（公尺）：500m 在台北市區剛好跨一條主要幹道
+DETOUR_OFFSET_M = 500
 
 # ── 智慧路徑「評分」專用半徑 ─────────────────────────────────────
 # 全域半徑 SEARCH_RADIUS_RADIANS = 6.4 km 涵蓋全城感測器，
@@ -799,11 +799,11 @@ async def _snap_to_road(lat: float, lon: float, mode: str = "driving") -> Option
         if data.get("code") == "Ok" and data.get("waypoints"):
             wp   = data["waypoints"][0]
             dist = wp.get("distance", 9999)
-            if dist <= 80:    # 80m 以內才算有效道路（排除山路）
+            if dist <= 150:   # 150m 以內才算有效道路（市區 OK，山路通常 >150m）
                 snapped_lon, snapped_lat = wp["location"]
                 return (round(snapped_lat, 6), round(snapped_lon, 6))
             else:
-                print(f"  _snap_to_road: ({lat},{lon}) 最近道路 {dist:.0f}m > 80m，放棄此 Waypoint（山路）")
+                print(f"  _snap_to_road: ({lat},{lon}) 最近道路 {dist:.0f}m > 150m，放棄此 Waypoint（山路）")
     except Exception as e:
         print(f"  _snap_to_road 失敗 ({lat},{lon}): {e}")
     return None

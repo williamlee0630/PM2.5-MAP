@@ -861,8 +861,8 @@
             const rid  = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
             const distM = result.value[0].distance ?? 0;
 
-            // ★ 排除「繞路距離 > 直行 1.5 倍」的路線（山路、繞遠路）
-            if (directDistM > 0 && distM > directDistM * 1.5) {
+            // ★ 排除「繞路距離 > 直行 2 倍」的路線（山路、極端繞遠路）
+            if (directDistM > 0 && distM > directDistM * 2.0) {
               console.log(`捨棄過長繞路：${(distM/1000).toFixed(1)}km vs 直行 ${(directDistM/1000).toFixed(1)}km`);
               return;
             }
