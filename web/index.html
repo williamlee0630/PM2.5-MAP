@@ -728,21 +728,22 @@
     function selectRoute(routeId) {
       selectedRouteId = routeId;
 
-      // 更新所有 Polyline 樣式
+      // 選取的路線顯示，其餘完全隱藏
       Object.entries(routePolylines).forEach(([id, poly]) => {
         const isSelected = (id === routeId);
         const isRec      = poly._pmIsRecommended;
-        poly.setStyle({
-          // 選取中：實線；未選取：虛線
-          dashArray : isSelected ? null : '10, 10',
-          weight    : isSelected ? 7 : 4,
-          opacity   : isSelected ? 0.95 : 0.45,
-          // 顏色：推薦路線選取=綠、非推薦選取=藍、未選取=灰
-          color: isSelected
-            ? (isRec ? '#0f9d58' : '#1a73e8')
-            : '#80868b',
-        });
-        if (isSelected) poly.bringToFront();
+        if (isSelected) {
+          poly.setStyle({
+            color    : isRec ? '#0f9d58' : '#1a73e8',
+            weight   : 7,
+            opacity  : 0.95,
+            dashArray: null,
+          });
+          poly.bringToFront();
+        } else {
+          // 隱藏非選取路線（opacity 0 保留圖層，不需重新加回地圖）
+          poly.setStyle({ opacity: 0, fillOpacity: 0 });
+        }
       });
 
       // 更新卡片外框
@@ -958,11 +959,12 @@
 
           const coords = routeResult.coordinates ?? pendingRouteCoords[routeResult.route_id];
           if (coords && typeof L !== 'undefined' && typeof map !== 'undefined') {
+            // 初始全部隱藏，由 selectRoute() 決定哪條顯示
             const poly = L.polyline(coords, {
-              color:     isRec ? '#0f9d58' : '#80868b',
-              weight:    isRec ? 7 : 4,
-              opacity:   isRec ? 0.9 : 0.5,
-              dashArray: isRec ? null : '10, 10'
+              color:     isRec ? '#0f9d58' : '#1a73e8',
+              weight:    7,
+              opacity:   0,
+              dashArray: null,
             }).addTo(map);
             poly._pmIsRecommended = isRec;
             routePolylines[routeResult.route_id]     = poly;
