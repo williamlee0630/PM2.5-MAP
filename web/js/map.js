@@ -12,6 +12,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19, attribution: '© OpenStreetMap'
 }).addTo(map);
 
+// 建立自訂圖層面板供路線使用，確保路線畫在感測點 (overlayPane z-index: 400) 之上
+map.createPane('routePane');
+map.getPane('routePane').style.zIndex = 450;
+
 const markersLayer = L.layerGroup().addTo(map);
 
 // ─────────────────────────────────────────────────────────────────
