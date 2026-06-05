@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
+
   <title>空污共犯：讓每一次移動科技成為守護城市呼吸的力量 | 智在家鄉</title>
-  
-  <meta name="description" content="參與聯發科技「智在家鄉」數位社會創新競賽的「空污共犯」專案，透過車輛裝載移動式微型感測器深入大台北地區街道巷弄，即時收集高精度 PM2.5 與空氣品質數據，補齊官方定點監測網難以覆蓋的微氣候缺口，打造開源的 3D 動態空污防護地圖，讓每一次移動科技都成為守護城市呼吸的力量。" />
+
+  <meta name="description"
+    content="參與聯發科技「智在家鄉」數位社會創新競賽的「空污共犯」專案，透過車輛裝載移動式微型感測器深入大台北地區街道巷弄，即時收集高精度 PM2.5 與空氣品質數據，補齊官方定點監測網難以覆蓋的微氣候缺口，打造開源的 3D 動態空污防護地圖，讓每一次移動科技都成為守護城市呼吸的力量。" />
   <meta name="keywords" content="智在家鄉, 空氣品質, PM2.5, 微型感測器, 空污地圖, 環境監測, 空污共犯" />
   <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
 
@@ -78,237 +80,1093 @@
   </script>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-  
+
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="alternate" type="text/markdown" href="llms.txt">
-  
+
   <style>
     /* 全局樣式 */
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; background-color: #f0f4f9; color: #1f1f1f; display: flex; height: 100vh; overflow: hidden; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+      background-color: #f0f4f9;
+      color: #1f1f1f;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
 
     /* 側邊欄樣式 */
-    .sidebar { width: 260px; background-color: #f0f4f9; display: flex; flex-direction: column; padding: 12px; transition: width 0.3s ease; flex-shrink: 0; }
-    .sidebar.collapsed { width: 72px; }
-    .sidebar.collapsed .menu-text { display: none; }
-    .sidebar.collapsed .sidebar-section-title { display: none; }
-    .menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin-bottom: 24px; transition: background 0.2s; }
-    .menu-toggle:hover { background-color: #e0e4e9; }
-    .sidebar-section-title { font-size: 14px; font-weight: bold; color: #444746; padding: 12px 16px; margin-top: 10px; }
-    
-    .menu-item { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 50px; cursor: pointer; margin-bottom: 4px; font-size: 15px; transition: background 0.2s, color 0.2s; white-space: nowrap; }
-    .menu-item:hover { background-color: #e0e4e9; }
-    .menu-item.active { background-color: #d3e3fd; color: #041e49; font-weight: bold; }
-    .menu-item.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
-    .sidebar-spacer { flex-grow: 1; }
-    .settings-dot { width: 8px; height: 8px; background-color: #1a73e8; border-radius: 50%; margin-left: auto; }
+    .sidebar {
+      width: 260px;
+      background-color: #f0f4f9;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      transition: width 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .sidebar.collapsed {
+      width: 72px;
+    }
+
+    .sidebar.collapsed .menu-text {
+      display: none;
+    }
+
+    .sidebar.collapsed .sidebar-section-title {
+      display: none;
+    }
+
+    .menu-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      margin-bottom: 24px;
+      transition: background 0.2s;
+    }
+
+    .menu-toggle:hover {
+      background-color: #e0e4e9;
+    }
+
+    .sidebar-section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #444746;
+      padding: 12px 16px;
+      margin-top: 10px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-radius: 50px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      font-size: 15px;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .menu-item:hover {
+      background-color: #e0e4e9;
+    }
+
+    .menu-item.active {
+      background-color: #d3e3fd;
+      color: #041e49;
+      font-weight: bold;
+    }
+
+    .menu-item.active .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1;
+    }
+
+    .sidebar-spacer {
+      flex-grow: 1;
+    }
+
+    .settings-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #1a73e8;
+      border-radius: 50%;
+      margin-left: auto;
+    }
 
     /* 主畫面樣式 */
-    .main-content { flex-grow: 1; background-color: #ffffff; border-radius: 24px 24px 0 0; margin-top: 12px; margin-right: 12px; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column;}
-    .view-section { display: none; flex-grow: 1; overflow-y: auto; }
-    .view-section.active { display: block; }
-    
-    #view-home, #view-news, #view-routing { padding: 40px; }
-    #view-map { padding: 0; }
-    #view-data, #view-charts { padding: 0; }
+    .main-content {
+      flex-grow: 1;
+      background-color: #ffffff;
+      border-radius: 24px 24px 0 0;
+      margin-top: 12px;
+      margin-right: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .view-section {
+      display: none;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    #view-home,
+    #view-news,
+    #view-routing {
+      padding: 40px;
+    }
+
+    #view-map {
+      padding: 0;
+    }
+
+    #view-data,
+    #view-charts {
+      padding: 0;
+    }
 
     /* 跑馬燈優化 */
-    .freshness-marquee { background: #1a73e8; color: #fff; overflow: hidden; padding: 10px 0; font-size: 14px; font-weight: bold; flex-shrink: 0; border-radius: 24px 24px 0 0; cursor: pointer; transition: background 0.3s; }
-    .freshness-marquee:hover { background: #1557b0; }
-    .marquee-content { display: inline-block; white-space: nowrap; padding-left: 10%; animation: marqueeRun 18s linear infinite; }
-    @keyframes marqueeRun { 0% { transform: translateX(0); } 100% { transform: translateX(-120%); } }
-    .freshness-marquee:hover .marquee-content { animation-play-state: paused; }
+    .freshness-marquee {
+      background: #1a73e8;
+      color: #fff;
+      overflow: hidden;
+      padding: 10px 0;
+      font-size: 14px;
+      font-weight: bold;
+      flex-shrink: 0;
+      border-radius: 24px 24px 0 0;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .freshness-marquee:hover {
+      background: #1557b0;
+    }
+
+    .marquee-content {
+      display: inline-block;
+      white-space: nowrap;
+      padding-left: 10%;
+      animation: marqueeRun 18s linear infinite;
+    }
+
+    @keyframes marqueeRun {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-120%);
+      }
+    }
+
+    .freshness-marquee:hover .marquee-content {
+      animation-play-state: paused;
+    }
 
     /* [修正⑩] @keyframes spin 移至此處，不再動態注入 */
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
 
     /* 首頁與共同卡片樣式 */
-    #view-home { text-align: center; }
-    .hero-card { max-width: 800px; margin: 0 auto; }
-    /* ★ 確保全站唯一的 H1 */
-    .hero-card h1 { color: #2c3e50; font-size: 28px; margin-bottom: 24px; line-height: 1.4;}
-    .hero-content { text-align: left; }
-    /* ★ H2 作為主要區塊標題 */
-    .hero-content h2 { font-size: 20px; color: #1a73e8; margin-top: 30px; margin-bottom: 12px; border-bottom: 2px solid #eaf1fd; padding-bottom: 8px; }
-    .hero-content p { line-height: 1.8; color: #444746; font-size: 16px; margin-bottom: 16px; }
-    .ai-summary-box { background: #f8f9fa; border: 1px solid #e0e4e9; border-left: 6px solid #0f9d58; border-radius: 12px; padding: 24px; margin: 24px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-    .ai-summary-box strong { display: block; margin-bottom: 8px; color: #0d6b3a; font-size: 18px; }
-    
-    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
-    .feature-card { background: #fff; border: 1px solid #edf0ec; border-radius: 16px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); text-align: left; transition: transform 0.2s;}
-    .feature-card:hover { transform: translateY(-3px); }
-    /* ★ H3 作為卡片內的小標題，符合階層邏輯 */
-    .feature-card h3 { margin: 0 0 10px 0; font-size: 18px; color: #1f2937; display: flex; align-items: center; gap: 6px; }
-    .feature-card p { margin: 0; font-size: 14px; color: #667085; line-height: 1.6; }
+    #view-home {
+      text-align: center;
+    }
 
-    mark { background-color: #fff2cc; color: #1f1f1f; padding: 0 4px; border-radius: 4px; font-weight: bold; }
-    .hero-image { width: 100%; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .hero-card {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* ★ 確保全站唯一的 H1 */
+    .hero-card h1 {
+      color: #2c3e50;
+      font-size: 28px;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+
+    .hero-content {
+      text-align: left;
+    }
+
+    /* ★ H2 作為主要區塊標題 */
+    .hero-content h2 {
+      font-size: 20px;
+      color: #1a73e8;
+      margin-top: 30px;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #eaf1fd;
+      padding-bottom: 8px;
+    }
+
+    .hero-content p {
+      line-height: 1.8;
+      color: #444746;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .ai-summary-box {
+      background: #f8f9fa;
+      border: 1px solid #e0e4e9;
+      border-left: 6px solid #0f9d58;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    }
+
+    .ai-summary-box strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #0d6b3a;
+      font-size: 18px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .feature-card {
+      background: #fff;
+      border: 1px solid #edf0ec;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      text-align: left;
+      transition: transform 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+    }
+
+    /* ★ H3 作為卡片內的小標題，符合階層邏輯 */
+    .feature-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-card p {
+      margin: 0;
+      font-size: 14px;
+      color: #667085;
+      line-height: 1.6;
+    }
+
+    mark {
+      background-color: #fff2cc;
+      color: #1f1f1f;
+      padding: 0 4px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .hero-image {
+      width: 100%;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
     /* 導航規劃功能專屬樣式 */
-    .routing-container { max-width: 900px; margin: 0 auto; text-align: left; }
-    .routing-header-title { font-size: 26px; color: #1f1f1f; font-weight: bold; margin-bottom: 12px; }
-    .routing-desc { font-size: 15px; color: #5f6368; line-height: 1.6; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #eaf1fd; }
-    
-    .route-input-group { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #e0e4e9;}
-    .route-input-field { display: flex; flex-direction: column; gap: 8px; }
-    .route-input-field label { font-size: 14px; font-weight: bold; color: #444746; display: flex; align-items: center; gap: 6px;}
-    .route-input-field input, .route-input-field select { padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s; background: #fff;}
-    .route-input-field input:focus, .route-input-field select:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
-    
-    .btn-calculate-route { background: #1a73e8; color: #fff; border: none; padding: 14px 24px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-    .btn-calculate-route:hover { background: #1557b0; }
-    .btn-calculate-route:disabled { background: #c7c7c7; cursor: not-allowed; }
+    .routing-container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: left;
+    }
 
-    .route-results-area { margin-top: 32px; display: none; }
-    .route-results-area.active { display: block; animation: fadeIn 0.4s ease; }
-    .route-result-card { background: #fff; border: 1px solid #e0e4e9; border-radius: 12px; padding: 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .route-result-card.recommended { border: 2px solid #0f9d58; background: #f6fdf9; }
-    .route-result-info h4 { margin: 0 0 8px 0; font-size: 18px; color: #1f1f1f; display: flex; align-items: center; gap: 8px;}
-    .route-result-info p { margin: 0; font-size: 14px; color: #5f6368; }
-    .route-pm-score { font-size: 24px; font-weight: bold; color: #d93025; }
-    .route-pm-score.healthy { color: #0f9d58; }
+    .routing-header-title {
+      font-size: 26px;
+      color: #1f1f1f;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .routing-desc {
+      font-size: 15px;
+      color: #5f6368;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #eaf1fd;
+    }
+
+    .route-input-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #e0e4e9;
+    }
+
+    .route-input-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .route-input-field label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #444746;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .route-input-field input,
+    .route-input-field select {
+      padding: 12px;
+      border: 1px solid #c7c7c7;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: 0.2s;
+      background: #fff;
+    }
+
+    .route-input-field input:focus,
+    .route-input-field select:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+    }
+
+    .btn-calculate-route {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .btn-calculate-route:hover {
+      background: #1557b0;
+    }
+
+    .btn-calculate-route:disabled {
+      background: #c7c7c7;
+      cursor: not-allowed;
+    }
+
+    .route-results-area {
+      margin-top: 32px;
+      display: none;
+    }
+
+    .route-results-area.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .route-result-card {
+      background: #fff;
+      border: 1px solid #e0e4e9;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .route-result-card.recommended {
+      border: 2px solid #0f9d58;
+      background: #f6fdf9;
+    }
+
+    .route-result-info h4 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      color: #1f1f1f;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .route-result-info p {
+      margin: 0;
+      font-size: 14px;
+      color: #5f6368;
+    }
+
+    .route-pm-score {
+      font-size: 24px;
+      font-weight: bold;
+      color: #d93025;
+    }
+
+    .route-pm-score.healthy {
+      color: #0f9d58;
+    }
 
     /* [修正⑦] data_coverage 警示樣式 */
-    .coverage-warning { font-size: 13px; color: #b06000; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 10px; margin-top: 8px; display: inline-block; }
+    .coverage-warning {
+      font-size: 13px;
+      color: #b06000;
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-top: 8px;
+      display: inline-block;
+    }
 
     /* 路線卡片：選取中狀態（藍色外框） */
-    .route-result-card { cursor: pointer; transition: box-shadow 0.2s, outline 0.15s; }
-    .route-result-card.selected { outline: 3px solid #1a73e8; outline-offset: -2px; background: #f0f6ff !important; }
+    .route-result-card {
+      cursor: pointer;
+      transition: box-shadow 0.2s, outline 0.15s;
+    }
+
+    .route-result-card.selected {
+      outline: 3px solid #1a73e8;
+      outline-offset: -2px;
+      background: #f0f6ff !important;
+    }
 
     /* 口罩健康建議提示框 */
-    .health-alert-mask { display: flex; align-items: flex-start; gap: 14px; background: #fff8e1; border: 1px solid #ffe082; border-left: 5px solid #f9a825; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
-    .health-alert-mask .mask-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
-    .health-alert-mask strong { display: block; font-size: 15px; color: #5d4037; margin-bottom: 5px; }
-    .health-alert-mask p { margin: 0; font-size: 14px; color: #5d4037; line-height: 1.6; }
+    .health-alert-mask {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-left: 5px solid #f9a825;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+
+    .health-alert-mask .mask-icon {
+      font-size: 30px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .health-alert-mask strong {
+      display: block;
+      font-size: 15px;
+      color: #5d4037;
+      margin-bottom: 5px;
+    }
+
+    .health-alert-mask p {
+      margin: 0;
+      font-size: 14px;
+      color: #5d4037;
+      line-height: 1.6;
+    }
 
     /* 環境快訊 (News) 頁面樣式 */
-    .news-container { max-width: 900px; margin: 0 auto; text-align: left; }
-    .news-header-title { font-size: 26px; color: #1f1f1f; font-weight: bold; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #eaf1fd;}
-    
-    .weather-suggestion-box { background-color: #f4f9f4; border: 1px solid #e6ece6; border-radius: 16px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-    .weather-suggestion-box h3 { color: #0d6b3a; font-size: 18px; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px; }
-    .weather-suggestion-box p { margin: 0 0 8px 0; color: #444746; font-size: 15px; line-height: 1.7; }
-    .weather-suggestion-box .update-time { font-size: 13px; color: #667085; margin-bottom: 12px; }
+    .news-container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: left;
+    }
 
-    .news-list { display: flex; flex-direction: column; gap: 20px; }
-    .news-item { background: #fff; border: 1px solid #edf0ec; border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); display: flex; flex-direction: column; }
-    .news-item-source { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #667085; margin-bottom: 8px; font-weight: bold;}
-    .news-item a.news-title { color: #1a73e8; font-size: 20px; font-weight: bold; text-decoration: none; margin-bottom: 12px; line-height: 1.4; transition: color 0.2s;}
-    .news-item a.news-title:hover { color: #1557b0; text-decoration: underline; }
-    .news-item p.news-desc { margin: 0; color: #444746; font-size: 15px; line-height: 1.7; }
+    .news-header-title {
+      font-size: 26px;
+      color: #1f1f1f;
+      font-weight: bold;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #eaf1fd;
+    }
+
+    .weather-suggestion-box {
+      background-color: #f4f9f4;
+      border: 1px solid #e6ece6;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    }
+
+    .weather-suggestion-box h3 {
+      color: #0d6b3a;
+      font-size: 18px;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .weather-suggestion-box p {
+      margin: 0 0 8px 0;
+      color: #444746;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .weather-suggestion-box .update-time {
+      font-size: 13px;
+      color: #667085;
+      margin-bottom: 12px;
+    }
+
+    .news-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .news-item {
+      background: #fff;
+      border: 1px solid #edf0ec;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .news-item-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #667085;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .news-item a.news-title {
+      color: #1a73e8;
+      font-size: 20px;
+      font-weight: bold;
+      text-decoration: none;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      transition: color 0.2s;
+    }
+
+    .news-item a.news-title:hover {
+      color: #1557b0;
+      text-decoration: underline;
+    }
+
+    .news-item p.news-desc {
+      margin: 0;
+      color: #444746;
+      font-size: 15px;
+      line-height: 1.7;
+    }
 
     /* 地圖與表格 */
-    #map { width: 100%; height: 100%; position: relative; }
-    .legend { position: absolute; right: 18px; bottom: 32px; z-index: 999; background: rgba(0, 0, 0, 0.72); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.9; }
-    .legend-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+    #map {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
 
-    .data-header { padding: 30px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    .data-title-group h2 { margin: 0; font-size: 20px; color: #1f1f1f; margin-bottom: 4px; }
-    .btn-group { display: flex; gap: 12px; }
-    .action-btn { display: flex; align-items: center; gap: 6px; background-color: #ffffff; border: 1px solid #c7c7c7; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
-    .action-btn:hover { background-color: #f0f4f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .action-btn .material-symbols-outlined { font-size: 18px; }
-    .btn-refresh { color: #1a73e8; }
-    .btn-chart { color: #0f9d58; border-color: #0f9d58; background-color: #e6f4ea; }
-    .btn-chart:hover { background-color: #ceead6; }
+    .legend {
+      position: absolute;
+      right: 18px;
+      bottom: 32px;
+      z-index: 999;
+      background: rgba(0, 0, 0, 0.72);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.9;
+    }
 
-    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 15px; }
-    th, td { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
-    th { color: #444746; font-weight: bold; position: sticky; top: 0; background: #fff;}
-    tr:hover { background-color: #f8f9fa; }
-    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #000; }
+    .legend-dot {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      margin-right: 7px;
+      vertical-align: -1px;
+    }
 
-    .charts-wrapper { display: flex; flex-direction: column; gap: 24px; padding: 0 30px 30px 30px; }
-    .chart-card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.02); height: 350px; display: flex; flex-direction: column; justify-content: center;}
+    .data-header {
+      padding: 30px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .data-title-group h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #1f1f1f;
+      margin-bottom: 4px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: #ffffff;
+      border: 1px solid #c7c7c7;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    .action-btn:hover {
+      background-color: #f0f4f9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-btn .material-symbols-outlined {
+      font-size: 18px;
+    }
+
+    .btn-refresh {
+      color: #1a73e8;
+    }
+
+    .btn-chart {
+      color: #0f9d58;
+      border-color: #0f9d58;
+      background-color: #e6f4ea;
+    }
+
+    .btn-chart:hover {
+      background-color: #ceead6;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    th,
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    th {
+      color: #444746;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      background: #fff;
+    }
+
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #000;
+    }
+
+    .charts-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: 0 30px 30px 30px;
+    }
+
+    .chart-card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #eee;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      height: 350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
 
     /* 設定頁面樣式 */
-    .settings-container { padding: 40px; max-width: 800px; margin: 0 auto; text-align: left;}
-    .settings-title { font-size: 24px; font-weight: bold; margin-bottom: 24px; color: #1f1f1f; }
-    .setting-card { background: #fff; border-radius: 12px; border: 1px solid #e0e4e9; padding: 24px; margin-bottom: 24px; }
-    .setting-card-title { font-size: 16px; font-weight: bold; color: #1a73e8; margin-bottom: 24px; }
-    .setting-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .setting-row:last-child { margin-bottom: 0; }
-    .setting-info { padding-right: 20px; }
-    .setting-info-title { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: #1f1f1f; }
-    .setting-info-desc { font-size: 14px; color: #5f6368; line-height: 1.6; }
-    .setting-checkbox { width: 22px; height: 22px; cursor: pointer; accent-color: #837b5a; margin-top: 2px;}
-    
-    .contact-card { background: #eaf1fd; border-radius: 12px; padding: 30px; border-left: 6px solid #1a73e8; }
-    .contact-card-title { font-size: 18px; font-weight: bold; color: #1f1f1f; margin-bottom: 16px; }
-    .contact-text { font-size: 15px; color: #3c4043; line-height: 1.8; margin-bottom: 16px; }
-    .contact-list { padding-left: 24px; margin-bottom: 24px; color: #3c4043; font-size: 15px; line-height: 1.8; }
-    .contact-list li { margin-bottom: 8px; }
-    .contact-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-    .contact-btn:hover { background: #1557b0; }
+    .settings-container {
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: left;
+    }
 
-    .chart-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e0e4e9; }
-    .chart-controls label { font-size: 14px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 4px;}
-    .chart-controls select { padding: 6px 12px; border-radius: 6px; border: 1px solid #c7c7c7; font-family: inherit; font-size: 14px; outline: none; cursor: pointer; background: #fff; }
-    .chart-controls select:focus { border-color: #1a73e8; }
+    .settings-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 24px;
+      color: #1f1f1f;
+    }
+
+    .setting-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e0e4e9;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .setting-card-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #1a73e8;
+      margin-bottom: 24px;
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .setting-info {
+      padding-right: 20px;
+    }
+
+    .setting-info-title {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 6px;
+      color: #1f1f1f;
+    }
+
+    .setting-info-desc {
+      font-size: 14px;
+      color: #5f6368;
+      line-height: 1.6;
+    }
+
+    .setting-checkbox {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      accent-color: #837b5a;
+      margin-top: 2px;
+    }
+
+    .contact-card {
+      background: #eaf1fd;
+      border-radius: 12px;
+      padding: 30px;
+      border-left: 6px solid #1a73e8;
+    }
+
+    .contact-card-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1f1f1f;
+      margin-bottom: 16px;
+    }
+
+    .contact-text {
+      font-size: 15px;
+      color: #3c4043;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+
+    .contact-list {
+      padding-left: 24px;
+      margin-bottom: 24px;
+      color: #3c4043;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .contact-list li {
+      margin-bottom: 8px;
+    }
+
+    .contact-btn {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .contact-btn:hover {
+      background: #1557b0;
+    }
+
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+      background: #f8f9fa;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #e0e4e9;
+    }
+
+    .chart-controls label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #1f1f1f;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chart-controls select {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #c7c7c7;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .chart-controls select:focus {
+      border-color: #1a73e8;
+    }
+
     /* 選定特定日期時，時段篩選自動停用的視覺回饋 */
-    .chart-controls select:disabled { opacity: 0.38; cursor: not-allowed; background: #f0f0f0; }
+    .chart-controls select:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      background: #f0f0f0;
+    }
 
     /* 圖表頁籤切換系統樣式 */
-    .chart-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eaf1fd; padding-bottom: 10px; flex-wrap: wrap; }
-    .chart-tab { background: transparent; border: none; color: #667085; font-size: 15px; font-weight: bold; padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 6px; border-radius: 8px; transition: 0.2s; }
-    .chart-tab:hover { background: #f8f9fa; color: #1a73e8; }
-    .chart-tab.active { background: #eaf1fd; color: #1a73e8; }
-    .chart-panel { display: none; flex-direction: column; gap: 20px; animation: fadeIn 0.3s ease; }
-    .chart-panel.active { display: flex; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .chart-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #eaf1fd;
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chart-tab {
+      background: transparent;
+      border: none;
+      color: #667085;
+      font-size: 15px;
+      font-weight: bold;
+      padding: 10px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 8px;
+      transition: 0.2s;
+    }
+
+    .chart-tab:hover {
+      background: #f8f9fa;
+      color: #1a73e8;
+    }
+
+    .chart-tab.active {
+      background: #eaf1fd;
+      color: #1a73e8;
+    }
+
+    .chart-panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .chart-panel.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
 
     /* 讓空污點位產生高斯模糊暈染 */
     .air-glow-effect {
-      filter: blur(8px); 
-      mix-blend-mode: multiply; 
+      filter: blur(8px);
+      mix-blend-mode: multiply;
     }
 
     @media (max-width: 768px) {
-      .legend { right: 10px; bottom: 24px; padding: 8px 12px; font-size: 11px; line-height: 1.5; }
-      .legend div:first-child { font-size: 12px !important; margin-bottom: 2px !important; }
-      .legend-dot { width: 10px; height: 10px; margin-right: 5px; }
-      .freshness-marquee { border-radius: 16px 16px 0 0; margin-top: 8px; margin-right: 8px; font-size: 13px;}
-      .main-content { border-radius: 0; margin-top: 0; margin-right: 8px; }
-      .feature-grid { grid-template-columns: 1fr; gap: 12px; }
-      .data-header { flex-direction: column; align-items: flex-start; padding: 20px 15px; gap: 16px; }
-      .btn-group { width: 100%; display: flex; gap: 10px; }
-      .action-btn { flex: 1; justify-content: center; padding: 10px 4px; font-size: 13px; }
-      #view-data > div:nth-of-type(2) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      table { min-width: 650px; font-size: 14px; }
-      th, td { padding: 12px 15px; white-space: nowrap; }
-      .status-badge { display: inline-block; white-space: nowrap; }
-      .charts-wrapper { padding: 0 15px 20px 15px; }
-      .settings-container { padding: 20px 15px; }
-      #view-home, #view-news, #view-routing { padding: 20px 15px; }
-      .setting-row { flex-direction: column; gap: 12px; }
+      .legend {
+        right: 10px;
+        bottom: 24px;
+        padding: 8px 12px;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .legend div:first-child {
+        font-size: 12px !important;
+        margin-bottom: 2px !important;
+      }
+
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        margin-right: 5px;
+      }
+
+      .freshness-marquee {
+        border-radius: 16px 16px 0 0;
+        margin-top: 8px;
+        margin-right: 8px;
+        font-size: 13px;
+      }
+
+      .main-content {
+        border-radius: 0;
+        margin-top: 0;
+        margin-right: 8px;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .data-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px 15px;
+        gap: 16px;
+      }
+
+      .btn-group {
+        width: 100%;
+        display: flex;
+        gap: 10px;
+      }
+
+      .action-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 4px;
+        font-size: 13px;
+      }
+
+      #view-data>div:nth-of-type(2) {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 650px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        white-space: nowrap;
+      }
+
+      .status-badge {
+        display: inline-block;
+        white-space: nowrap;
+      }
+
+      .charts-wrapper {
+        padding: 0 15px 20px 15px;
+      }
+
+      .settings-container {
+        padding: 20px 15px;
+      }
+
+      #view-home,
+      #view-news,
+      #view-routing {
+        padding: 20px 15px;
+      }
+
+      .setting-row {
+        flex-direction: column;
+        gap: 12px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <aside class="sidebar" id="sidebar">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
 
-    <div class="menu-item active" onclick="switchTab('home', this)"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></div>
-    
+    <div class="menu-item active" onclick="switchTab('home', this)"><span
+        class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></div>
+
     <div class="menu-item" onclick="switchTab('routing', this)">
       <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
       <span class="menu-text">健康防護導航</span>
     </div>
 
-    <div class="menu-item" id="nav-news" onclick="switchTab('news', this)"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></div>
-    
+    <div class="menu-item" id="nav-news" onclick="switchTab('news', this)"><span
+        class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></div>
+
     <div class="sidebar-section-title">數據與圖表</div>
-    
+
     <!-- [修正②] 加上固定 id，讓 switchTab 呼叫不再依賴字串拼接選取器 -->
-    <div class="menu-item" id="nav-map" onclick="switchTab('map', this)"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></div>
-    <div class="menu-item" onclick="switchTab('data', this)"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></div>
-    <div class="menu-item" id="nav-charts" onclick="switchTab('charts', this)"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></div>
+    <div class="menu-item" id="nav-map" onclick="switchTab('map', this)"><span
+        class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></div>
+    <div class="menu-item" onclick="switchTab('data', this)"><span class="material-symbols-outlined">dataset</span><span
+        class="menu-text">數據後台</span></div>
+    <div class="menu-item" id="nav-charts" onclick="switchTab('charts', this)"><span
+        class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></div>
 
     <div class="sidebar-spacer"></div>
 
@@ -320,8 +1178,9 @@
   </aside>
 
   <main class="main-content">
-    
-    <div class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議" onclick="switchTab('news', document.getElementById('nav-news'))">
+
+    <div class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議"
+      onclick="switchTab('news', document.getElementById('nav-news'))">
       <div class="marquee-content" id="dynamic-marquee">
         資料讀取中...
       </div>
@@ -329,17 +1188,18 @@
 
     <noscript>
       <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
-        <p>您的瀏覽器不支援或已停用 JavaScript。本平台即時收集台北市各區域的 PM2.5 數據。最新空氣品質狀態涵蓋：良好 (0-15.4)、普通 (15.5-35.4)、對敏感族群不健康 (35.5-54.4) 及危險等級。詳細即時數據、互動式地圖與圖表分析，請啟用 JavaScript 後觀看。</p>
+        <p>您的瀏覽器不支援或已停用 JavaScript。本平台即時收集台北市各區域的 PM2.5 數據。最新空氣品質狀態涵蓋：良好 (0-15.4)、普通 (15.5-35.4)、對敏感族群不健康 (35.5-54.4)
+          及危險等級。詳細即時數據、互動式地圖與圖表分析，請啟用 JavaScript 後觀看。</p>
       </div>
     </noscript>
 
     <div id="view-home" class="view-section active">
       <div class="hero-card">
         <h1>空污共犯：讓每一次移動科技成為守護城市呼吸的力量</h1>
-        
+
         <article class="hero-content">
           <img src="logo.jpg" alt="空污共犯：車載移動式微型感測器收集台北 PM2.5 數據" class="hero-image">
-          
+
           <div class="ai-summary-box">
             <strong>📊 空氣品質觀測總結 (AI 摘要)</strong>
             <p id="ai-summary-text" style="margin:0; font-size:15px; color:#4b5563; line-height:1.7;">
@@ -348,25 +1208,31 @@
           </div>
 
           <h2>什麼是「空污共犯」專案？</h2>
-          <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與 (Crowdsourcing)</strong>，由車輛裝載微型感測器行駛於台北各街道，將每一次的移動軌跡轉化為守護城市的數據，補齊巷弄間微氣候的動態空污地圖。</p>
-          
+          <p>這是為<strong>「智在家鄉」競賽</strong>所打造的環境監測系統。有別於傳統的定點式空氣品質監測站，本平台透過<strong>群眾參與
+              (Crowdsourcing)</strong>，由車輛裝載微型感測器行駛於台北各街道，將每一次的移動軌跡轉化為守護城市的數據，補齊巷弄間微氣候的動態空污地圖。</p>
+
           <h2>運作機制：如何收集 PM2.5 數據？</h2>
-          <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。車載感測裝置會實時收集高精度的 <mark>PM2.5 濃度</mark> 與 GPS 定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
-          
+          <p>本平台結合<strong>物聯網 (IoT) 技術</strong>與<strong>移動式微型感測器</strong>。車載感測裝置會實時收集高精度的 <mark>PM2.5 濃度</mark> 與 GPS
+            定位，並透過網路即時回傳至雲端資料庫，實現街道級別的動態空污監測。</p>
+
           <h2>感測器與資料準確度說明</h2>
-          <p>本專案採用的微型空污感測器（如：Plantower PMS5003 雷射粉塵感測模組），經過初步校正，能有效反映趨勢變化。所有數據透過 Google Sheets API 即時開源，供學術研究與環境評估交叉比對使用，確保資料的透明度與可信度。</p>
+          <p>本專案採用的微型空污感測器（如：Plantower PMS5003 雷射粉塵感測模組），經過初步校正，能有效反映趨勢變化。所有數據透過 Google Sheets API
+            即時開源，供學術研究與環境評估交叉比對使用，確保資料的透明度與可信度。</p>
 
           <h2>權威標準與數據參考</h2>
-          <blockquote style="background: #f0f4f9; border-left: 5px solid #1a73e8; padding: 16px; margin: 0 0 20px 0; border-radius: 4px;">
+          <blockquote
+            style="background: #f0f4f9; border-left: 5px solid #1a73e8; padding: 16px; margin: 0 0 20px 0; border-radius: 4px;">
             <p style="margin: 0; font-size: 15px; color: #3c4043;">
-              <strong>🔬 科學分級依據：</strong>本平台的 PM2.5 濃度健康風險分級，皆參考並對齊 
-              <a href="https://airtw.moenv.gov.tw/" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; font-weight: bold; text-decoration: none;">行政院環境部空氣品質監測網 (AQI)</a> 
+              <strong>🔬 科學分級依據：</strong>本平台的 PM2.5 濃度健康風險分級，皆參考並對齊
+              <a href="https://airtw.moenv.gov.tw/" target="_blank" rel="noopener noreferrer"
+                style="color: #1a73e8; font-weight: bold; text-decoration: none;">行政院環境部空氣品質監測網 (AQI)</a>
               之最新指標，確保車載感測數據能與國家級觀測站標準具備高度可比較性。
             </p>
           </blockquote>
           <p>
-            為了發揮數據的最大價值，「空污共犯」的微型氣候觀測資料，未來將積極評估串接至 
-            <a href="https://data.gov.tw/" target="_blank" rel="noopener noreferrer" style="color: #0f9d58; font-weight: bold; text-decoration: none;">政府資料開放平臺 (data.gov.tw)</a> 
+            為了發揮數據的最大價值，「空污共犯」的微型氣候觀測資料，未來將積極評估串接至
+            <a href="https://data.gov.tw/" target="_blank" rel="noopener noreferrer"
+              style="color: #0f9d58; font-weight: bold; text-decoration: none;">政府資料開放平臺 (data.gov.tw)</a>
             或與民間最大的 <strong>LASS (開源公益環境感測網路)</strong> 進行交叉分析，共同完善台北市的 3D 空污地圖。
           </p>
 
@@ -391,31 +1257,37 @@
 
     <div id="view-routing" class="view-section">
       <div class="routing-container">
-        <h2 class="routing-header-title">智慧健康防護導航 <span style="font-size: 14px; background: #e6f4ea; color: #0d6b3a; padding: 4px 8px; border-radius: 4px; vertical-align: middle;">Beta 測試中</span></h2>
+        <h2 class="routing-header-title">智慧健康防護導航 <span
+            style="font-size: 14px; background: #e6f4ea; color: #0d6b3a; padding: 4px 8px; border-radius: 4px; vertical-align: middle;">Beta
+            測試中</span></h2>
         <p class="routing-desc">
           本功能串接 Python 後端演算法與 K-D Tree 空間索引技術。系統將會抓取導航 API 的多條替代路線，並與雲端樞紐的即時微型感測網進行交叉運算，為您規劃出曝露風險最低的「黃金健康路線」。
         </p>
 
         <div class="route-input-group" style="flex-wrap: wrap;">
           <div class="route-input-field" style="flex: 1; min-width: 200px;">
-            <label><span class="material-symbols-outlined" style="font-size:18px; color:#1a73e8;">my_location</span> 選擇出發地</label>
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#1a73e8;">my_location</span>
+              選擇出發地</label>
             <input type="text" id="route-start" placeholder="例如：東吳大學城中校區" value="">
           </div>
           <div class="route-input-field" style="flex: 1; min-width: 200px;">
-            <label><span class="material-symbols-outlined" style="font-size:18px; color:#d93025;">location_on</span> 選擇目的地</label>
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#d93025;">location_on</span>
+              選擇目的地</label>
             <input type="text" id="route-end" placeholder="例如：士林捷運站" value="">
           </div>
           <div class="route-input-field" style="flex: 0 0 100%; margin-top: 12px;">
-            <label><span class="material-symbols-outlined" style="font-size:18px; color:#fbbc04;">commute</span> 選擇交通方式</label>
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#fbbc04;">commute</span>
+              選擇交通方式</label>
             <!-- [修正⑤] OSRM profile 值：bike → cycling、foot → walking -->
-            <select id="route-mode" style="padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; background: #fff; cursor: pointer;">
+            <select id="route-mode"
+              style="padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; background: #fff; cursor: pointer;">
               <option value="driving">🚗 汽 / 機車 (優先走主要幹道)</option>
               <option value="cycling">🚲 自行車 (優先走河濱或單車道)</option>
               <option value="walking">🚶 步行 (允許穿越巷弄與人行道)</option>
             </select>
           </div>
         </div>
-        
+
         <button class="btn-calculate-route" id="btn-calc-route" onclick="callPythonRoutingAPI()">
           <span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線
         </button>
@@ -430,8 +1302,8 @@
 
     <div id="view-news" class="view-section">
       <div class="news-container">
-        <h2 class="news-header-title">權威觀測快訊與氣象資訊</h2>
-        
+        <h2 class="news-header-title">觀測快訊與氣象資訊</h2>
+
         <article class="weather-suggestion-box">
           <h3><span class="material-symbols-outlined">partly_cloudy_day</span> 今日台北天氣與空氣品質建議</h3>
           <p class="update-time">更新日期：氣象資料連線中...</p>
@@ -441,23 +1313,25 @@
 
         <h3 style="font-size: 20px; color: #1f1f1f; margin-bottom: 16px;">公單位與開源平台最新動態</h3>
         <div class="news-list">
-          
+
           <article class="news-item">
             <div class="news-item-source">
-              <span class="material-symbols-outlined" style="font-size:16px;">account_balance</span> 
+              <span class="material-symbols-outlined" style="font-size:16px;">account_balance</span>
               <span>行政院環境部</span>
             </div>
             <a href="https://airtw.moenv.gov.tw/" target="_blank" class="news-title">目前環境部空污感測器涵蓋哪些地區？監控多少污染源？</a>
-            <p class="news-desc">環境部自 106 年起陸續於台北市、新北市等地區佈建空污感測器網路。本專案「空污共犯」的移動式數據，正是為了補足官方定點監測網難以深入巷弄微氣候的缺口，建立更全面的 3D 空污防護網。</p>
+            <p class="news-desc">環境部自 106 年起陸續於台北市、新北市等地區佈建空污感測器網路。本專案「空污共犯」的移動式數據，正是為了補足官方定點監測網難以深入巷弄微氣候的缺口，建立更全面的 3D
+              空污防護網。</p>
           </article>
 
           <article class="news-item">
             <div class="news-item-source">
-              <span class="material-symbols-outlined" style="font-size:16px;">dataset</span> 
+              <span class="material-symbols-outlined" style="font-size:16px;">dataset</span>
               <span>臺北市資料大平臺 (data.taipei)</span>
             </div>
             <a href="https://data.taipei/" target="_blank" class="news-title">臺北市空氣品質微型感測資料 (開放 API)</a>
-            <p class="news-desc">查詢臺北市 12 個行政區官方建置之微型感測器空氣品質資料。「空污共犯」團隊積極推動開源精神，期望未來能將我們的車載動態數據與市政府的靜態開放資料進行 API 串接與交叉比對驗證。</p>
+            <p class="news-desc">查詢臺北市 12 個行政區官方建置之微型感測器空氣品質資料。「空污共犯」團隊積極推動開源精神，期望未來能將我們的車載動態數據與市政府的靜態開放資料進行 API
+              串接與交叉比對驗證。</p>
           </article>
 
         </div>
@@ -483,25 +1357,26 @@
           <h2>Google Sheets 原始數據紀錄</h2>
           <span id="data-status" style="color: #444746; font-size: 14px;">資料讀取中...</span>
         </div>
-        
+
         <div class="btn-group">
           <button class="action-btn btn-chart" onclick="goToCharts()">
             <span class="material-symbols-outlined">insights</span>
             查看分析圖表
           </button>
-          
+
           <button class="action-btn btn-refresh" onclick="refreshData()">
             <span class="material-symbols-outlined">refresh</span>
             更新數據
           </button>
-          
-          <button class="action-btn" onclick="downloadCSV()" style="color:#0f9d58;border-color:#0f9d58;background:#e6f4ea;" title="下載含縣市地區的完整 CSV 檔">
+
+          <button class="action-btn" onclick="downloadCSV()"
+            style="color:#0f9d58;border-color:#0f9d58;background:#e6f4ea;" title="下載含縣市地區的完整 CSV 檔">
             <span class="material-symbols-outlined">download</span>
             下載 CSV
           </button>
         </div>
       </div>
-      
+
       <div id="data-scroll-container" style="overflow-y: auto; height: calc(100vh - 100px);">
         <table>
           <caption style="text-align: left; font-size: 13px; color: #666; margin-bottom: 8px;">
@@ -530,25 +1405,30 @@
           <span style="color: #444746; font-size: 14px;">資料會與地圖同步每 10 秒自動更新</span>
         </div>
       </div>
-      
+
       <div class="charts-wrapper">
-        
+
         <div class="chart-tabs">
-          <button class="chart-tab active" onclick="switchChartTab('district', this)"><span class="material-symbols-outlined">bar_chart</span> 地區比較長條圖</button>
-          <button class="chart-tab" onclick="switchChartTab('trend', this)"><span class="material-symbols-outlined">show_chart</span> 濃度趨勢折線圖</button>
-          <button class="chart-tab" onclick="switchChartTab('pie', this)"><span class="material-symbols-outlined">pie_chart</span> 總體狀態圓餅圖</button>
+          <button class="chart-tab active" onclick="switchChartTab('district', this)"><span
+              class="material-symbols-outlined">bar_chart</span> 地區比較長條圖</button>
+          <button class="chart-tab" onclick="switchChartTab('trend', this)"><span
+              class="material-symbols-outlined">show_chart</span> 濃度趨勢折線圖</button>
+          <button class="chart-tab" onclick="switchChartTab('pie', this)"><span
+              class="material-symbols-outlined">pie_chart</span> 總體狀態圓餅圖</button>
         </div>
 
         <div id="chart-panel-trend" class="chart-panel">
           <div class="chart-controls">
-            <label for="pm25TrendFilter"><span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span> 狀態篩選：</label>
+            <label for="pm25TrendFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">filter_alt</span> 狀態篩選：</label>
             <select id="pm25TrendFilter" onchange="renderCharts()">
               <option value="all">顯示全部數據</option>
               <option value="warning">僅顯示空污熱區 (大於 35.5 µg/m³)</option>
               <option value="danger">僅顯示危險等級 (大於 54.5 µg/m³)</option>
             </select>
-            
-            <label for="chartTimeRangeFilter"><span class="material-symbols-outlined" style="font-size: 18px;">date_range</span> 歷史時段：</label>
+
+            <label for="chartTimeRangeFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">date_range</span> 歷史時段：</label>
             <select id="chartTimeRangeFilter" onchange="renderCharts()">
               <option value="all">所有歷史觀測紀錄</option>
               <option value="1h">過去 1 小時動態</option>
@@ -556,13 +1436,15 @@
               <option value="24h">過去 24 小時歷史</option>
             </select>
 
-            <label for="chartDateFilter"><span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span> 指定日期：</label>
+            <label for="chartDateFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">calendar_today</span> 指定日期：</label>
             <select id="chartDateFilter" onchange="renderCharts()">
               <option value="all">所有日期</option>
               <!-- 選項由 app.js updateDateFilter() 動態填入 -->
             </select>
 
-            <label for="chartRegionFilter"><span class="material-symbols-outlined" style="font-size: 18px;">location_on</span> 行政區：</label>
+            <label for="chartRegionFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">location_on</span> 行政區：</label>
             <select id="chartRegionFilter" onchange="renderCharts()">
               <option value="all">全部地區</option>
               <!-- 選項由 app.js updateRegionFilter() 動態填入 -->
@@ -605,7 +1487,7 @@
 
         <div class="setting-card">
           <div class="setting-card-title">地圖互動設定</div>
-          
+
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-info-title">自動追蹤最新位置</div>
@@ -624,8 +1506,8 @@
               </div>
             </div>
             <select id="setting-map-mode"
-                    style="width:auto;padding:4px 8px;font-size:14px;cursor:pointer;accent-color:#837b5a;"
-                    onchange="setMapDisplayMode(this.value)">
+              style="width:auto;padding:4px 8px;font-size:14px;cursor:pointer;accent-color:#837b5a;"
+              onchange="setMapDisplayMode(this.value)">
               <option value="aggregate">聚合模式</option>
               <option value="raw">原始模式</option>
             </select>
@@ -648,8 +1530,8 @@
               </div>
             </div>
             <select id="setting-map-hours" class="setting-checkbox"
-                    style="width:auto;padding:4px 8px;font-size:14px;cursor:pointer;"
-                    onchange="applyMapHoursSetting(this.value)">
+              style="width:auto;padding:4px 8px;font-size:14px;cursor:pointer;"
+              onchange="applyMapHoursSetting(this.value)">
               <option value="2">最近 2 小時</option>
               <option value="6">最近 6 小時</option>
               <option value="24">最近 24 小時</option>
@@ -716,13 +1598,13 @@
     // ── 全域狀態 ─────────────────────────────────────────────────
     // routePolylines : { routeKey → L.Polyline }，取代舊的陣列
     //                  方便點擊卡片時反查並切換樣式
-    let routePolylines       = {};
-    let pendingRouteCoords   = {}; // { routeKey: [[lat,lon], ...] }
-    let selectedRouteId      = null;
+    let routePolylines = {};
+    let pendingRouteCoords = {}; // { routeKey: [[lat,lon], ...] }
+    let selectedRouteId = null;
 
     // isRoutingInProgress：路線計算進行中時設為 true，
     // app.js 的 setInterval 會跳過該次更新，避免搶資源
-    let isRoutingInProgress  = false;
+    let isRoutingInProgress = false;
 
     // ── 路線選取函式（切換實線 / 虛線）──────────────────────────
     function selectRoute(routeId) {
@@ -731,12 +1613,12 @@
       // 選取的路線顯示，其餘完全隱藏
       Object.entries(routePolylines).forEach(([id, poly]) => {
         const isSelected = (id === routeId);
-        const isRec      = poly._pmIsRecommended;
+        const isRec = poly._pmIsRecommended;
         if (isSelected) {
           poly.setStyle({
-            color    : isRec ? '#0f9d58' : '#1a73e8',
-            weight   : 7,
-            opacity  : 0.95,
+            color: isRec ? '#0f9d58' : '#1a73e8',
+            weight: 7,
+            opacity: 0.95,
             dashArray: null,
           });
           poly.bringToFront();
@@ -777,9 +1659,9 @@
       } else {
         coordStr = `${startCoord.lon},${startCoord.lat};${endCoord.lon},${endCoord.lat}`;
       }
-      const alt  = waypoint ? 'false' : 'true';
-      const url  = `https://router.project-osrm.org/route/v1/${mode}/${coordStr}?geometries=geojson&alternatives=${alt}&overview=full`;
-      const res  = await fetch(url);
+      const alt = waypoint ? 'false' : 'true';
+      const url = `https://router.project-osrm.org/route/v1/${mode}/${coordStr}?geometries=geojson&alternatives=${alt}&overview=full`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.code !== 'Ok' || !data.routes?.length) return [];
       return data.routes;
@@ -789,13 +1671,13 @@
     // 流程：① OSRM 基礎路線 → ② 後端偵測熱區取 waypoints
     //      → ③ OSRM 繞路路線 → ④ 後端統一評分 → ⑤ 顯示
     async function callPythonRoutingAPI() {
-      const btn              = document.getElementById('btn-calc-route');
+      const btn = document.getElementById('btn-calc-route');
       const resultsContainer = document.getElementById('route-results-container');
-      const wrapper          = document.getElementById('route-cards-wrapper');
+      const wrapper = document.getElementById('route-cards-wrapper');
 
       const startAddress = document.getElementById('route-start').value.trim();
-      const endAddress   = document.getElementById('route-end').value.trim();
-      const routeMode    = document.getElementById('route-mode').value;
+      const endAddress = document.getElementById('route-end').value.trim();
+      const routeMode = document.getElementById('route-mode').value;
 
       if (!startAddress || !endAddress) { alert("請輸入完整的起點與目的地！"); return; }
 
@@ -818,7 +1700,7 @@
       try {
         // ① 地理編碼
         const startCoord = await geocodeAddress(startAddress);
-        const endCoord   = await geocodeAddress(endAddress);
+        const endCoord = await geocodeAddress(endAddress);
 
         // ② OSRM 基礎路線（前端直接呼叫）
         btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">sync</span> 取得基礎路線中...`;
@@ -827,7 +1709,7 @@
 
         // 轉換座標格式 [lon,lat] → [{lat,lon}]
         const toCoordObjs = coords => coords.map(([lat, lon]) => ({ lat, lon }));
-        const toLLPairs   = coords => coords.map(c => [c[1], c[0]]); // OSRM [lon,lat] → [lat,lon]
+        const toLLPairs = coords => coords.map(c => [c[1], c[0]]); // OSRM [lon,lat] → [lat,lon]
 
         const allRoutes = []; // { route_id, latLonPairs }
         baseRoutes.slice(0, 2).forEach((r, i) => {
@@ -843,7 +1725,7 @@
           body: JSON.stringify({ mode: routeMode, coordinates: mainCoords })
         });
         const hotspotData = hotspotRes.ok ? await hotspotRes.json() : { waypoints: [] };
-        const waypoints   = hotspotData.waypoints ?? [];
+        const waypoints = hotspotData.waypoints ?? [];
 
         // ④ 用每個 waypoint 呼叫 OSRM 取得繞路路線（並發）
         if (waypoints.length) {
@@ -857,13 +1739,13 @@
 
           detourResults.forEach((result, idx) => {
             if (result.status !== 'fulfilled' || !result.value?.length) return;
-            const wp   = waypoints[idx];
-            const rid  = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
+            const wp = waypoints[idx];
+            const rid = wp.label === 'detour_clean_A' ? 'detour_A' : 'detour_B';
             const distM = result.value[0].distance ?? 0;
 
             // ★ 排除「繞路距離 > 直行 2 倍」的路線（山路、極端繞遠路）
             if (directDistM > 0 && distM > directDistM * 2.0) {
-              console.log(`捨棄過長繞路：${(distM/1000).toFixed(1)}km vs 直行 ${(directDistM/1000).toFixed(1)}km`);
+              console.log(`捨棄過長繞路：${(distM / 1000).toFixed(1)}km vs 直行 ${(directDistM / 1000).toFixed(1)}km`);
               return;
             }
 
@@ -884,7 +1766,7 @@
         const scorePayload = {
           mode: routeMode,
           routes: allRoutes.map(r => ({
-            route_id:    r.route_id,
+            route_id: r.route_id,
             coordinates: toCoordObjs(r.latLonPairs)
           }))
         };
@@ -909,7 +1791,7 @@
         if (sortedResults.length === 1) {
           const n = document.createElement('p');
           n.style.cssText = 'color:#5f6368;font-size:14px;margin-bottom:12px;';
-          n.textContent   = '⚠️ 此路段僅找到一條可用路線，無法進行替代比較';
+          n.textContent = '⚠️ 此路段僅找到一條可用路線，無法進行替代比較';
           wrapper.appendChild(n);
         }
 
@@ -932,22 +1814,22 @@
 
         // ── 渲染卡片
         sortedResults.forEach(routeResult => {
-          const isRec      = routeResult.is_ai_recommended;
-          const coverage   = routeResult.data_coverage ?? 'unknown';
-          const label      = strategyLabel[routeResult.route_id] ?? `${modeIcon} 路線 (${routeResult.distance_km} km)`;
-          const safeId    = escapeHtml(`${label} (${routeResult.distance_km} km)`);
-          const safeAvg   = escapeHtml(routeResult.average_exposure_pm25);
-          const safePeak  = escapeHtml(routeResult.peak_exposure_pm25);
+          const isRec = routeResult.is_ai_recommended;
+          const coverage = routeResult.data_coverage ?? 'unknown';
+          const label = strategyLabel[routeResult.route_id] ?? `${modeIcon} 路線 (${routeResult.distance_km} km)`;
+          const safeId = escapeHtml(`${label} (${routeResult.distance_km} km)`);
+          const safeAvg = escapeHtml(routeResult.average_exposure_pm25);
+          const safePeak = escapeHtml(routeResult.peak_exposure_pm25);
           const safeCount = escapeHtml(routeResult.analyzed_points_count);
-          const safeTime  = escapeHtml(routeResult.travel_time_minutes);
-          const safeEI    = escapeHtml(Math.round(routeResult.exposure_index));
+          const safeTime = escapeHtml(routeResult.travel_time_minutes);
+          const safeEI = escapeHtml(Math.round(routeResult.exposure_index));
 
           const coverageHtml = coverage === 'none'
             ? `<span class="coverage-warning">⚠️ 此路線無感測器覆蓋，數值為全區估算值</span>`
             : coverage === 'sparse' ? `<span class="coverage-warning">⚠️ 感測器覆蓋稀疏，數值僅供參考</span>` : '';
 
           const card = document.createElement('div');
-          card.className       = `route-result-card${isRec ? ' recommended' : ''}`;
+          card.className = `route-result-card${isRec ? ' recommended' : ''}`;
           card.dataset.routeId = routeResult.route_id;
           card.addEventListener('click', () => {
             selectRoute(routeResult.route_id);
@@ -970,14 +1852,14 @@
           if (coords && typeof L !== 'undefined' && typeof map !== 'undefined') {
             // 初始全部隱藏，由 selectRoute() 決定哪條顯示
             const poly = L.polyline(coords, {
-              color:     isRec ? '#0f9d58' : '#1a73e8',
-              weight:    7,
-              opacity:   0,
+              color: isRec ? '#0f9d58' : '#1a73e8',
+              weight: 7,
+              opacity: 0,
               dashArray: null,
-              pane:      'routePane',
+              pane: 'routePane',
             }).addTo(map);
             poly._pmIsRecommended = isRec;
-            routePolylines[routeResult.route_id]     = poly;
+            routePolylines[routeResult.route_id] = poly;
             pendingRouteCoords[routeResult.route_id] = coords;
             if (isRec) poly.bindPopup(`<b>推薦健康路線</b><br>平均 PM2.5: ${safeAvg} µg/m³<br>行駛時間: ${safeTime} 分`).openPopup();
           }
@@ -1002,4 +1884,5 @@
   </script>
 
 </body>
+
 </html>
