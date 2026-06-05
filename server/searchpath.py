@@ -10,13 +10,17 @@ from typing import Annotated, List, Optional, Tuple
 import httpx
 import numpy as np
 import pandas as pd
+# pyrefly: ignore [missing-import]
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sklearn.neighbors import BallTree
+# pyrefly: ignore [missing-import]
 from slowapi import Limiter, _rate_limit_exceeded_handler
+# pyrefly: ignore [missing-import]
 from slowapi.errors import RateLimitExceeded
+# pyrefly: ignore [missing-import]
 from slowapi.util import get_remote_address
 
 # ─────────────────────────────────────────────
