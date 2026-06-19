@@ -1156,30 +1156,30 @@
   <aside class="sidebar" id="sidebar">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
 
-    <div class="menu-item active" onclick="switchTab('home', this)"><span
+    <div class="menu-item active" data-tab="home" onclick="switchTab('home', this)"><span
         class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></div>
 
-    <div class="menu-item" onclick="switchTab('routing', this)">
+    <div class="menu-item" data-tab="routing" onclick="switchTab('routing', this)">
       <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
       <span class="menu-text">健康防護導航</span>
     </div>
 
-    <div class="menu-item" id="nav-news" onclick="switchTab('news', this)"><span
+    <div class="menu-item" data-tab="news" id="nav-news" onclick="switchTab('news', this)"><span
         class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></div>
 
     <div class="sidebar-section-title">數據與圖表</div>
 
     <!-- [修正②] 加上固定 id，讓 switchTab 呼叫不再依賴字串拼接選取器 -->
-    <div class="menu-item" id="nav-map" onclick="switchTab('map', this)"><span
+    <div class="menu-item" data-tab="map" id="nav-map" onclick="switchTab('map', this)"><span
         class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></div>
-    <div class="menu-item" onclick="switchTab('data', this)"><span class="material-symbols-outlined">dataset</span><span
+    <div class="menu-item" data-tab="data" onclick="switchTab('data', this)"><span class="material-symbols-outlined">dataset</span><span
         class="menu-text">數據後台</span></div>
-    <div class="menu-item" id="nav-charts" onclick="switchTab('charts', this)"><span
+    <div class="menu-item" data-tab="charts" id="nav-charts" onclick="switchTab('charts', this)"><span
         class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></div>
 
     <div class="sidebar-spacer"></div>
 
-    <div class="menu-item" onclick="switchTab('settings', this)">
+    <div class="menu-item" data-tab="settings" onclick="switchTab('settings', this)">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
@@ -1189,7 +1189,7 @@
   <main class="main-content">
 
     <div class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議"
-      onclick="switchTab('news', document.getElementById('nav-news'))">
+      onclick="switchTab('news')">
       <div class="marquee-content" id="dynamic-marquee">
         資料讀取中...
       </div>
@@ -1842,7 +1842,7 @@
           card.dataset.routeId = routeResult.route_id;
           card.addEventListener('click', () => {
             selectRoute(routeResult.route_id);
-            switchTab('map', document.getElementById('nav-map'));
+            switchTab('map');
           });
           card.innerHTML = `
             <div class="route-result-info">
@@ -1879,7 +1879,7 @@
 
         resultsContainer.classList.add('active');
         alert("運算完成！已在地圖上為您標示推薦的最健康路線。");
-        switchTab('map', document.getElementById('nav-map'));
+        switchTab('map');
 
       } catch (err) {
         alert("發生錯誤：" + err.message);
