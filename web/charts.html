@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>PM2.5 數據視覺化分析圖表 | 空污共犯</title>
+  <meta name="description" content="PM2.5 濃度趨勢折線圖、各行政區比較長條圖、空污分級圓餅圖。" />
+  <meta name="keywords" content="PM2.5 圖表, 趨勢分析, 行政區比較, 空污分級, 數據視覺化, 空污共犯" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="PM2.5 數據視覺化分析圖表 | 空污共犯" />
+  <meta property="og:description" content="PM2.5 濃度趨勢折線圖、各行政區比較長條圖、空污分級圓餅圖。" />
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item">
+      <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
+      <span class="menu-text">健康防護導航</span>
+    </a>
+    <a href="news.html" class="menu-item"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item active"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </a>
+  </aside>
+
+  <main class="main-content">
+    <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
+      <div class="marquee-content" id="dynamic-marquee">資料讀取中...</div>
+    </a>
+
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>此頁面需要 JavaScript 才能渲染互動式圖表。PM2.5 數據視覺化分析需要 Chart.js 支援。</p>
+      </div>
+    </noscript>
+
+    <div id="view-charts" class="view-section active">
+      <div class="data-header" style="border-bottom: none; padding-bottom: 10px;">
+        <div class="data-title-group">
+          <h1 style="font-size:20px;margin:0 0 4px 0;color:#1f1f1f;">多維度數據視覺化分析</h1>
+          <span style="color: #444746; font-size: 14px;">資料會與地圖同步每 10 秒自動更新</span>
+        </div>
+      </div>
+
+      <div class="charts-wrapper">
+
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="switchChartTab('district', this)"><span
+              class="material-symbols-outlined">bar_chart</span> 地區比較長條圖</button>
+          <button class="chart-tab" onclick="switchChartTab('trend', this)"><span
+              class="material-symbols-outlined">show_chart</span> 濃度趨勢折線圖</button>
+          <button class="chart-tab" onclick="switchChartTab('pie', this)"><span
+              class="material-symbols-outlined">pie_chart</span> 總體狀態圓餅圖</button>
+        </div>
+
+        <div id="chart-panel-trend" class="chart-panel">
+          <div class="chart-controls">
+            <label for="pm25TrendFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">filter_alt</span> 狀態篩選：</label>
+            <select id="pm25TrendFilter" onchange="renderCharts()">
+              <option value="all">顯示全部數據</option>
+              <option value="warning">僅顯示空污熱區 (大於 35.5 µg/m³)</option>
+              <option value="danger">僅顯示危險等級 (大於 54.5 µg/m³)</option>
+            </select>
+
+            <label for="chartTimeRangeFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">date_range</span> 歷史時段：</label>
+            <select id="chartTimeRangeFilter" onchange="renderCharts()">
+              <option value="all">所有歷史觀測紀錄</option>
+              <option value="1h">過去 1 小時動態</option>
+              <option value="6h">過去 6 小時動態</option>
+              <option value="24h">過去 24 小時歷史</option>
+            </select>
+
+            <label for="chartDateFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">calendar_today</span> 指定日期：</label>
+            <select id="chartDateFilter" onchange="renderCharts()">
+              <option value="all">所有日期</option>
+            </select>
+
+            <label for="chartRegionFilter"><span class="material-symbols-outlined"
+                style="font-size: 18px;">location_on</span> 行政區：</label>
+            <select id="chartRegionFilter" onchange="renderCharts()">
+              <option value="all">全部地區</option>
+            </select>
+          </div>
+
+          <div class="chart-card">
+            <canvas id="pm25TrendChart" aria-label="PM2.5 濃度時間趨勢折線圖" role="img">
+              <p>您的瀏覽器或爬蟲不支援圖表顯示，此處為 PM2.5 濃度隨時間變化的折線圖。</p>
+            </canvas>
+          </div>
+        </div>
+
+        <div id="chart-panel-pie" class="chart-panel">
+          <div class="chart-card">
+            <canvas id="statusPieChart" aria-label="總體空氣品質狀態分佈圓餅圖" role="img">
+              <p>您的瀏覽器或爬蟲不支援圖表顯示，此處為空氣品質狀態分佈比例的圓餅圖。</p>
+            </canvas>
+          </div>
+        </div>
+
+        <!-- ★ 地區 PM2.5 比較長條圖 -->
+        <div id="chart-panel-district" class="chart-panel active">
+          <div style="font-size:13px;color:#5f6368;margin-bottom:10px;">
+            依感測器所在行政區彙總 PM2.5 平均值，由高至低排列。橘色虛線為敏感族群警戒線（35.5 µg/m³）。點擊分頁時自動計算，約需 3–5 秒完成縣市解析。
+          </div>
+          <div class="chart-card" style="height:420px;">
+            <canvas id="districtBarChart" aria-label="各行政區 PM2.5 平均濃度比較長條圖" role="img">
+              <p>您的瀏覽器不支援圖表顯示，此處為各行政區 PM2.5 平均濃度比較長條圖。</p>
+            </canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

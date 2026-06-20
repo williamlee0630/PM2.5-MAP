@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>PM2.5 原始感測數據後台 | 空污共犯</title>
+  <meta name="description" content="公開透明的車載微型感測器原始數據紀錄，支援 CSV 下載與即時更新。" />
+  <meta name="keywords" content="PM2.5 數據, 感測器資料, CSV 下載, 開放數據, 空污共犯" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="PM2.5 原始感測數據後台 | 空污共犯" />
+  <meta property="og:description" content="公開透明的車載微型感測器原始數據紀錄，支援 CSV 下載與即時更新。" />
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item">
+      <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
+      <span class="menu-text">健康防護導航</span>
+    </a>
+    <a href="news.html" class="menu-item"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item active"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </a>
+  </aside>
+
+  <main class="main-content">
+    <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
+      <div class="marquee-content" id="dynamic-marquee">資料讀取中...</div>
+    </a>
+
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>此頁面需要 JavaScript 才能載入感測數據表格。PM2.5 數據即時更新中。</p>
+      </div>
+    </noscript>
+
+    <div id="view-data" class="view-section active">
+      <div class="data-header">
+        <div class="data-title-group">
+          <h1 style="font-size:20px;margin:0 0 4px 0;color:#1f1f1f;">Google Sheets 原始數據紀錄</h1>
+          <span id="data-status" style="color: #444746; font-size: 14px;">資料讀取中...</span>
+        </div>
+
+        <div class="btn-group">
+          <a href="charts.html" class="action-btn btn-chart">
+            <span class="material-symbols-outlined">insights</span>
+            查看分析圖表
+          </a>
+
+          <button class="action-btn btn-refresh" onclick="refreshData()">
+            <span class="material-symbols-outlined">refresh</span>
+            更新數據
+          </button>
+
+          <button class="action-btn" onclick="downloadCSV()"
+            style="color:#0f9d58;border-color:#0f9d58;background:#e6f4ea;" title="下載含縣市地區的完整 CSV 檔">
+            <span class="material-symbols-outlined">download</span>
+            下載 CSV
+          </button>
+        </div>
+      </div>
+
+      <div id="data-scroll-container" style="overflow-y: auto; height: calc(100vh - 100px);">
+        <table>
+          <caption style="text-align: left; font-size: 13px; color: #666; margin-bottom: 8px;">
+            實時更新的 PM2.5 監測數據（包含時間戳記、濃度、空氣品質狀態與經緯度）
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">時間戳記</th>
+              <th scope="col">PM2.5 (µg/m³)</th>
+              <th scope="col">縣市地區</th>
+              <th scope="col">狀態等級</th>
+              <th scope="col">緯度</th>
+              <th scope="col">經度</th>
+              <th scope="col">衛星數</th>
+            </tr>
+          </thead>
+          <tbody id="data-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

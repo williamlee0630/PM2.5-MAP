@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>觀測快訊與氣象資訊 | 空污共犯</title>
+  <meta name="description" content="台北市即時天氣與空氣品質建議，匯整環境部與開源平台最新動態。" />
+  <meta name="keywords" content="台北天氣, 空氣品質建議, PM2.5 快訊, 環境部, 空污共犯" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="觀測快訊與氣象資訊 | 空污共犯" />
+  <meta property="og:description" content="台北市即時天氣與空氣品質建議，匯整環境部與開源平台最新動態。" />
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item">
+      <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
+      <span class="menu-text">健康防護導航</span>
+    </a>
+    <a href="news.html" class="menu-item active"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </a>
+  </aside>
+
+  <main class="main-content">
+    <div class="freshness-marquee">
+      <div class="marquee-content" id="dynamic-marquee">資料讀取中...</div>
+    </div>
+
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>此頁面需要 JavaScript 才能載入即時天氣與空氣品質資訊。</p>
+      </div>
+    </noscript>
+
+    <div id="view-news" class="view-section active">
+      <div class="news-container">
+        <h1 class="news-header-title">觀測快訊與氣象資訊</h1>
+
+        <article class="weather-suggestion-box">
+          <h3><span class="material-symbols-outlined">partly_cloudy_day</span> 今日台北天氣與空氣品質建議</h3>
+          <p class="update-time">更新日期：氣象資料連線中...</p>
+          <p id="weather-realtime-desc">即時氣象與空污資料同步中...</p>
+          <p id="weather-realtime-advice"><strong>防護建議：</strong> 分析中...</p>
+        </article>
+
+        <h3 style="font-size: 20px; color: #1f1f1f; margin-bottom: 16px;">公單位與開源平台最新動態</h3>
+        <div class="news-list">
+
+          <article class="news-item">
+            <div class="news-item-source">
+              <span class="material-symbols-outlined" style="font-size:16px;">account_balance</span>
+              <span>行政院環境部</span>
+            </div>
+            <a href="https://airtw.moenv.gov.tw/" target="_blank" class="news-title">目前環境部空污感測器涵蓋哪些地區？監控多少污染源？</a>
+            <p class="news-desc">環境部自 106 年起陸續於台北市、新北市等地區佈建空污感測器網路。本專案「空污共犯」的移動式數據，正是為了補足官方定點監測網難以深入巷弄微氣候的缺口，建立更全面的 3D
+              空污防護網。</p>
+          </article>
+
+          <article class="news-item">
+            <div class="news-item-source">
+              <span class="material-symbols-outlined" style="font-size:16px;">dataset</span>
+              <span>臺北市資料大平臺 (data.taipei)</span>
+            </div>
+            <a href="https://data.taipei/" target="_blank" class="news-title">臺北市空氣品質微型感測資料 (開放 API)</a>
+            <p class="news-desc">查詢臺北市 12 個行政區官方建置之微型感測器空氣品質資料。「空污共犯」團隊積極推動開源精神，期望未來能將我們的車載動態數據與市政府的靜態開放資料進行 API
+              串接與交叉比對驗證。</p>
+          </article>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

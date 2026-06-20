@@ -1,20 +1,31 @@
 // js/app.js
+// ══════════════════════════════════════════════════════════════
+// 資料抓取、圖表渲染、表格、county enrichment
+// 多頁式架構：自動偵測當前頁面所需功能
+// getColor / getStatus 已移至 common.js
+// ══════════════════════════════════════════════════════════════
+
 const sheetId = '1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ';
 const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
-// ── 地圖顯示時間視窗（使用者可在設定頁調整）─────────────────────
-// 預設只顯示最近 24 小時的點，避免地圖點爆炸
-// 原始資料仍完整存在（折線圖、下載、導航評分都用完整資料）
-// 預設 168h（7 天）= 原始 Sheet 的保留上限，確保有資料可以顯示
-// 策略 B 執行後原始 Sheet 只有 7 天資料，所以「全部顯示」等同於 7 天
+// ── 地圖顯示時間視窗 ─────────────────────────────────────────
 let MAP_DISPLAY_HOURS = parseInt(localStorage.getItem('mapDisplayHours') ?? '168', 10);
 
 function getMapCutoffTime() {
   return Date.now() - MAP_DISPLAY_HOURS * 60 * 60 * 1000;
 }
 
-// 註冊 DataLabels 套件 (為了圓餅圖顯示百分比)
-Chart.register(ChartDataLabels);
+// ── 地圖時間視窗設定套用（settings.html / map.html 使用）──────
+function applyMapHoursSetting(hours) {
+  MAP_DISPLAY_HOURS = parseInt(hours, 10);
+  localStorage.setItem('mapDisplayHours', hours);
+  refreshData();
+}
+
+// ── 條件性註冊 Chart.js DataLabels 套件 ──────────────────────
+if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+}
 
 let trendChartInstance = null;
 let pieChartInstance = null;
@@ -57,7 +68,6 @@ async function updateDynamicText(data) {
   if (summaryEl) summaryEl.innerHTML = aiSummary;
 
   try {
-    // open-meteo 在部分 CDN 有 CORS 問題，改走 Render 後端 proxy
     const weatherRes = await fetch('https://pm2-5-map.onrender.com/api/weather');
     const weatherData = await weatherRes.json();
     const current = weatherData.current;
@@ -98,39 +108,34 @@ function switchChartTab(tabId, btnElement) {
   document.querySelectorAll('.chart-tab').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.chart-panel').forEach(panel => panel.classList.remove('active'));
   btnElement.classList.add('active');
-  document.getElementById(`chart-panel-${tabId}`).classList.add('active');
-
+  const panel = document.getElementById(`chart-panel-${tabId}`);
+  if (panel) panel.classList.add('active');
 }
 
 // ─────────────────────────────────────────────────────────────
-// [新增] 日期篩選下拉選單動態填充
-// 從 globalData 提取所有不重複日期，依序加入 #chartDateFilter
+// 日期篩選下拉選單動態填充
 // ─────────────────────────────────────────────────────────────
 function updateDateFilter(data) {
   const dateSelect = document.getElementById('chartDateFilter');
   if (!dateSelect) return;
 
-  // 提取所有不重複、格式正確的日期字串 (e.g. "2026-05-29")
   const uniqueDates = [...new Set(
     data
       .map(d => d.timestamp ? d.timestamp.trim().split(/\s+/)[0] : null)
       .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
   )].sort();
 
-  // 記住目前選擇，重建後盡量還原
   const prevValue = dateSelect.value;
 
   dateSelect.innerHTML = '<option value="all">所有日期</option>';
   uniqueDates.forEach(date => {
     const opt = document.createElement('option');
     opt.value = date;
-    // "2026-05-29" → "05/29 (2026)"
     const [year, month, day] = date.split('-');
     opt.textContent = `${month}/${day} (${year})`;
     dateSelect.appendChild(opt);
   });
 
-  // 若先前的選擇仍在新資料中則保留，否則回到「所有日期」
   if ([...dateSelect.options].some(o => o.value === prevValue)) {
     dateSelect.value = prevValue;
   }
@@ -138,9 +143,7 @@ function updateDateFilter(data) {
 
 // ─────────────────────────────────────────────────────────────
 // 時間序列標籤格式化
-// 同一天只顯示時間；跨日第一筆加上 MM/DD 前綴
 // ─────────────────────────────────────────────────────────────
-// 每筆都顯示完整日期時間 MM/DD HH:MM:SS
 function formatTrendLabel(timestamp) {
   if (!timestamp) return '';
   const parts = timestamp.trim().split(/\s+/);
@@ -151,13 +154,10 @@ function formatTrendLabel(timestamp) {
 
 // ══════════════════════════════════════════════════════════════
 // 縣市反查工具（使用自己 Repo 內的精確 GeoJSON）
-// 來源：web/data/twTown.geojson（內政部國土測繪中心，368 個鄉鎮市區）
-// 精度：真正多邊形查詢 ±11m，遠優於邊界框的 ±500m
 // ══════════════════════════════════════════════════════════════
-let countyGeoJSON = null;   // 快取 twTown.geojson（載入後常駐記憶體）
-let _countyCache  = {};     // { "lat4,lon4": "士林區" } 避免重複計算
+let countyGeoJSON = null;
+let _countyCache  = {};
 
-// ── 射線法：判斷點 [x,y] 是否在多邊形環內 ───────────────────────
 function _pointInRing([x, y], ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -170,7 +170,6 @@ function _pointInRing([x, y], ring) {
   return inside;
 }
 
-// ── 多邊形查詢：找出座標 (lon, lat) 屬於哪個行政區 ───────────────
 function getCountyName(lon, lat, features) {
   const pt = [lon, lat];
   for (const f of features) {
@@ -179,7 +178,6 @@ function getCountyName(lon, lat, features) {
     const polys = geo.type === 'MultiPolygon' ? geo.coordinates : [geo.coordinates];
     for (const poly of polys) {
       if (_pointInRing(pt, poly[0])) {
-        // twTown.geojson 使用 TOWNNAME（士林區）
         return f.properties.TOWNNAME ?? f.properties.COUNTYNAME ?? null;
       }
     }
@@ -187,11 +185,9 @@ function getCountyName(lon, lat, features) {
   return null;
 }
 
-// ── 懶載入 twTown.geojson（首次呼叫時從 Vercel 靜態資源載入）─────
 async function loadCountyGeoJSONIfNeeded() {
   if (countyGeoJSON) return true;
   try {
-    // /data/twTown.geojson 由 Vercel 直接 serve，無 CORS 問題
     const res = await fetch('/data/twTown.geojson');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     countyGeoJSON = await res.json();
@@ -203,7 +199,6 @@ async function loadCountyGeoJSONIfNeeded() {
   }
 }
 
-// ── 同步查詢點位所屬行政區（需先確認 GeoJSON 已載入）─────────────
 function getPointCounty(lat, lon) {
   if (!countyGeoJSON) return '載入中';
   const key = `${parseFloat(lat).toFixed(4)},${parseFloat(lon).toFixed(4)}`;
@@ -213,12 +208,10 @@ function getPointCounty(lat, lon) {
   return result;
 }
 
-// ── 非同步富集所有點位的行政區名稱 ──────────────────────────────
 async function enrichDataWithCounty() {
   const ok = await loadCountyGeoJSONIfNeeded();
   if (!ok) return;
 
-  // 只處理尚未查詢的點（不重複計算，不阻塞 10 秒更新）
   globalData.forEach(d => {
     if (!d._county) {
       d._county = getPointCounty(d.latitude, d.longitude);
@@ -228,7 +221,6 @@ async function enrichDataWithCounty() {
   updateRegionFilter();
 }
 
-// ── 地區篩選下拉選單動態重建 ─────────────────────────────────────
 function updateRegionFilter() {
   const sel = document.getElementById('chartRegionFilter');
   if (!sel) return;
@@ -243,7 +235,7 @@ function updateRegionFilter() {
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
-// ── CSV 下載（含縣市欄位，BOM 確保 Excel 正確顯示繁體中文）────────
+// ── CSV 下載 ─────────────────────────────────────────────────
 function downloadCSV() {
   const headers = ['時間戳記', 'PM2.5 (µg/m³)', '縣市地區', '狀態等級', '緯度', '經度', '衛星數'];
   const rows = [...globalData].reverse().map(d => [
@@ -273,12 +265,11 @@ function downloadCSV() {
 let districtBarChart = null;
 
 function renderDistrictBar() {
-  if (globalData.length === 0) return;
+  if (typeof Chart === 'undefined' || globalData.length === 0) return;
 
-  // 彙總各區平均 PM2.5
   const buckets = {};
   globalData.forEach(d => {
-    const district = d._county;   // enrichDataWithCounty 存在 _county
+    const district = d._county;
     if (!district || district === '載入中' || district === '其他') return;
     if (!buckets[district]) buckets[district] = { sum: 0, count: 0 };
     buckets[district].sum   += parseFloat(d.pm25) || 0;
@@ -300,7 +291,6 @@ function renderDistrictBar() {
     return;
   }
 
-  // 依平均 PM2.5 降序排列
   const sorted = Object.entries(buckets)
     .map(([name, v]) => ({ name, avg: +(v.sum / v.count).toFixed(1), count: v.count }))
     .sort((a, b) => b.avg - a.avg);
@@ -362,7 +352,6 @@ function renderDistrictBar() {
             }
           }
         },
-        // 35.5 µg/m³ AQI 警戒線
         annotation: undefined,
       },
       scales: {
@@ -374,7 +363,6 @@ function renderDistrictBar() {
           suggestedMin: 0,
           suggestedMax: Math.max(...values, 60) * 1.15,
           ticks: { callback: v => `${v}` },
-          // 手動畫警戒線用 afterDraw plugin
         }
       }
     },
@@ -402,9 +390,8 @@ function renderDistrictBar() {
 
 // === 圖表渲染主函式 ===
 function renderCharts() {
-  if (globalData.length === 0) return;
+  if (typeof Chart === 'undefined' || globalData.length === 0) return;
 
-  // ── 1. PM2.5 濃度篩選 ──
   const filterElement = document.getElementById('pm25TrendFilter');
   const filterValue = filterElement ? filterElement.value : 'all';
 
@@ -415,39 +402,32 @@ function renderCharts() {
     trendData = globalData.filter(d => d.pm25 >= 54.5);
   }
 
-  // ── 1b. 地區篩選 ──
   const regionEl = document.getElementById('chartRegionFilter');
   const regionValue = regionEl ? regionEl.value : 'all';
   if (regionValue !== 'all') {
     trendData = trendData.filter(d => d._county === regionValue);
   }
 
-  // ── 2. 日期篩選 (新增) ──
-  // 選定特定日期時，時段篩選（1h/6h/24h）自動停用，因為範圍已限縮為單日
   const dateFilterEl  = document.getElementById('chartDateFilter');
   const timeFilterEl  = document.getElementById('chartTimeRangeFilter');
   const dateFilterValue = dateFilterEl ? dateFilterEl.value : 'all';
   const timeFilterValue = timeFilterEl ? timeFilterEl.value : 'all';
 
   if (dateFilterValue !== 'all') {
-    // 僅保留該日資料
     trendData = trendData.filter(d => {
       if (!d.timestamp) return false;
       return d.timestamp.trim().split(/\s+/)[0] === dateFilterValue;
     });
-    // 停用時段篩選，避免誤導（選特定日期後「最近 1 小時」無意義）
     if (timeFilterEl) {
       timeFilterEl.disabled = true;
       timeFilterEl.title = '已選擇特定日期，時段篩選暫停';
     }
   } else {
-    // 恢復時段篩選
     if (timeFilterEl) {
       timeFilterEl.disabled = false;
       timeFilterEl.title = '';
     }
 
-    // ── 3. 時段篩選（僅在「所有日期」時生效）──
     if (timeFilterValue !== 'all') {
       let pointsToKeep = trendData.length;
       if (timeFilterValue === '1h')  pointsToKeep = 360;
@@ -460,11 +440,9 @@ function renderCharts() {
     }
   }
 
-  // ── 4. 標籤格式化（含跨日標示）──
   const labels = trendData.map(d => formatTrendLabel(d.timestamp));
   const pm25Values = trendData.map(d => d.pm25);
 
-  // ── 5. 圓餅圖統計（永遠基於 globalData，不受篩選影響）──
   const statusCounts = { '良好': 0, '普通': 0, '對敏感族群不健康': 0, '對所有族群不健康': 0, '非常不健康': 0, '危害': 0 };
   const statusColors = ['#00e400', '#ffff00', '#ff7e00', '#ff0000', '#8f3f97', '#7e0023'];
   globalData.forEach(d => {
@@ -558,35 +536,30 @@ function renderCharts() {
 // === 重繪數據後台表格（含縣市欄位）===
 function rebuildTable() {
   const tableBody = document.getElementById('data-table-body');
+  
+  // ── 地圖繪製（僅在 map 存在時執行）──
+  if (typeof renderMapMarkers === 'function') {
+    const cutoff     = getMapCutoffTime();
+    const windowData = globalData.filter(d => {
+      const t = new Date(d.timestamp).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+    renderMapMarkers(windowData);
+
+    const mapView = document.getElementById('view-map');
+    if (mapView && mapView.classList.contains('active')) {
+      if (typeof refreshMapLayout === 'function') refreshMapLayout();
+    }
+  }
+
+  // ── 表格繪製（僅在 data-table-body 存在時執行）──
   if (!tableBody) return;
 
-  // 重建前記住捲動位置，避免自動刷新時使用者被拉回頂部
   const scrollEl = document.getElementById('data-scroll-container');
   const savedTop = scrollEl ? scrollEl.scrollTop : 0;
 
   tableBody.innerHTML = '';
   const reversedData = [...globalData].reverse();
-
-  // ── 地圖只畫時間視窗內的點（預設 7 天），表格顯示所有資料 ──
-  const cutoff     = getMapCutoffTime();
-  const windowData = globalData.filter(d => {
-    const t = new Date(d.timestamp).getTime();
-    return !isNaN(t) && t >= cutoff;
-  });
-
-  // 地圖繪製：優先用新版 renderMapMarkers（聚合/原始模式）
-  // 若新版 map.js 尚未部署，自動降級為直接呼叫 addMarkerToMap
-  if (typeof renderMapMarkers === 'function') {
-    renderMapMarkers(windowData);
-  } else {
-    // 降級模式：直接逐點繪製（舊版 map.js 相容）
-    clearMapMarkers();
-    windowData.forEach((point, index) => addMarkerToMap(point, index === 0));
-  }
-  // 有資料時重新 fitBounds，確保地圖縮放到資料所在範圍
-  if (windowData.length > 0 && document.getElementById('view-map').classList.contains('active')) {
-    refreshMapLayout();
-  }
 
   reversedData.forEach(function(point, index) {
     const pm25Val  = point.pm25;
@@ -606,7 +579,6 @@ function rebuildTable() {
     tableBody.appendChild(tr);
   });
 
-  // 還原捲動位置（requestAnimationFrame 確保 DOM 繪製完成後再還原）
   if (scrollEl && savedTop > 0) {
     requestAnimationFrame(() => { scrollEl.scrollTop = savedTop; });
   }
@@ -614,15 +586,12 @@ function rebuildTable() {
 
 // === 抓取資料主函式 (PapaParse) ===
 function fetchData(isAuto = false) {
-  // ── 效能保護：路線計算進行中時，跳過自動更新 ──────────────────
-  // isRoutingInProgress 由 index.html 的 callPythonRoutingAPI() 控制。
-  // 路線計算需要 fetch + Python 運算，若同時跑 PapaParse + 重繪地圖
-  // 會搶佔主執行緒與網路，導致計算顯著變慢。
   if (isAuto && typeof isRoutingInProgress !== 'undefined' && isRoutingInProgress) {
     return;
   }
 
-  if (!isAuto) document.getElementById('data-status').innerText = '資料讀取中...';
+  const statusEl = document.getElementById('data-status');
+  if (!isAuto && statusEl) statusEl.innerText = '資料讀取中...';
 
   Papa.parse(csvUrl, {
     download: true,
@@ -631,41 +600,36 @@ function fetchData(isAuto = false) {
     complete: function(results) {
       globalData = results.data.filter(row => row.latitude && row.longitude && row.pm25 !== undefined);
       
-      document.getElementById('data-status').innerText = `共讀取 ${globalData.length} 筆資料 (最後更新: ${new Date().toLocaleTimeString()})`;
+      if (statusEl) statusEl.innerText = `共讀取 ${globalData.length} 筆資料 (最後更新: ${new Date().toLocaleTimeString()})`;
 
-      // 重建日期選單
       updateDateFilter(globalData);
 
       const tableBody = document.getElementById('data-table-body');
-      tableBody.innerHTML = '';
+      if (tableBody) tableBody.innerHTML = '';
 
-      clearMapMarkers();
+      if (typeof clearMapMarkers === 'function') clearMapMarkers();
       renderCharts();
       updateDynamicText(globalData);
 
-      // 非同步富集縣市資料（GeoJSON 懶載入，不阻塞主流程）
       enrichDataWithCounty().then(() => {
-        // GeoJSON 載入完成後重繪圖表（地區篩選選單已更新）
         renderCharts();
-        // 重繪表格（縣市欄位現在有值了）
         rebuildTable();
-        // 地區長條圖分頁（預設顯示）：縣市解析完成後一定渲染
         const _dPanel = document.getElementById('chart-panel-district');
         if (_dPanel && _dPanel.classList.contains('active')) renderDistrictBar();
       });
 
-      // 先用現有資料渲染表格（縣市欄可能還是「載入中」）
       rebuildTable();
 
-      if (document.getElementById('view-map').classList.contains('active')) {
-        refreshMapLayout();
+      const mapView = document.getElementById('view-map');
+      if (mapView && mapView.classList.contains('active')) {
+        if (typeof refreshMapLayout === 'function') refreshMapLayout();
       }
     },
     error: function(err) {
       console.error(err);
-      if (!isAuto) {
-        document.getElementById('data-status').innerText = '讀取失敗，請確認 Google Sheets 權限';
-        document.getElementById('data-status').style.color = 'red';
+      if (!isAuto && statusEl) {
+        statusEl.innerText = '讀取失敗，請確認 Google Sheets 權限';
+        statusEl.style.color = 'red';
       }
     }
   });
@@ -676,4 +640,17 @@ function refreshData() { fetchData(false); }
 document.addEventListener('DOMContentLoaded', () => {
   fetchData(false);
   setInterval(() => { fetchData(true); }, 10000);
+
+  // 還原地圖設定（如果設定 DOM 元素存在）
+  const savedHours = localStorage.getItem('mapDisplayHours');
+  if (savedHours) {
+    MAP_DISPLAY_HOURS = parseInt(savedHours, 10);
+    const sel = document.getElementById('setting-map-hours');
+    if (sel) sel.value = savedHours;
+  }
+  const savedMode = localStorage.getItem('mapDisplayMode');
+  if (savedMode) {
+    const modeSel = document.getElementById('setting-map-mode');
+    if (modeSel) modeSel.value = savedMode;
+  }
 });

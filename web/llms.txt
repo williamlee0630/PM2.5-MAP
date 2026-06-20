@@ -12,10 +12,11 @@
 
 ## 3. 系統架構與開源生態系 (System Architecture)
 本系統貫徹開源精神，無縫整合多項技術堆疊：
-* **前端介面 (Frontend)**：HTML/JS/CSS, Leaflet.js (動態地圖渲染), Chart.js (多維度數據視覺化)。
+* **前端介面 (Frontend)**：多頁式架構（index.html, map.html, charts.html, data.html, routing.html, news.html, settings.html），使用 Leaflet.js (動態地圖渲染) 與 Chart.js (多維度數據視覺化)。
 * **後端 API (Backend)**：Python FastAPI, SciPy (cKDTree 空間運算), NumPy, 部署於 Render 雲端平台。
 * **地理資訊與導航 (GIS & Routing)**：OpenStreetMap Nominatim API (地理編碼), Open Source Routing Machine / OSRM (真實路徑規劃)。
 * **雲端資料庫 (Database)**：Google Sheets API (IoT 即時數據接收與開源釋出)。
+* **部署平台 (Deployment)**：Vercel 靜態站台，啟用 cleanUrls 支援乾淨 URL 路由。
 
 ## 4. 數據規格與空氣品質分級標準 (Data Specifications & AQI)
 本平台的 PM2.5 數據即時公開，數值單位為 µg/m³，並完全對齊台灣行政院環境部最新指標進行健康風險分級：

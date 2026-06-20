@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>智慧健康防護導航 — 低 PM2.5 路線規劃 | 空污共犯</title>
+  <meta name="description" content="輸入起終點，AI 演算法結合即時空污數據與 K-D Tree 空間索引，為您推薦曝露風險最低的健康路線。" />
+  <meta name="keywords" content="健康路線, PM2.5 導航, 空污避開, 低污染路線, K-D Tree, 智在家鄉" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="智慧健康防護導航 — 低 PM2.5 路線規劃 | 空污共犯" />
+  <meta property="og:description" content="AI 演算法結合即時空污數據，為您規劃曝露風險最低的健康路線。" />
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item active">
+      <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
+      <span class="menu-text">健康防護導航</span>
+    </a>
+    <a href="news.html" class="menu-item"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </a>
+  </aside>
+
+  <main class="main-content">
+    <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
+      <div class="marquee-content" id="dynamic-marquee">資料讀取中...</div>
+    </a>
+
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>此頁面需要 JavaScript 才能使用健康路線規劃功能。請啟用 JavaScript 後重新整理頁面。</p>
+      </div>
+    </noscript>
+
+    <div id="view-routing" class="view-section active">
+      <div class="routing-container">
+        <h1 class="routing-header-title">智慧健康防護導航 <span
+            style="font-size: 14px; background: #e6f4ea; color: #0d6b3a; padding: 4px 8px; border-radius: 4px; vertical-align: middle;">Beta
+            測試中</span></h1>
+        <p class="routing-desc">
+          本功能串接 Python 後端演算法與 K-D Tree 空間索引技術。系統將會抓取導航 API 的多條替代路線，並與雲端樞紐的即時微型感測網進行交叉運算，為您規劃出曝露風險最低的「黃金健康路線」。
+        </p>
+
+        <div class="route-input-group" style="flex-wrap: wrap;">
+          <div class="route-input-field" style="flex: 1; min-width: 200px;">
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#1a73e8;">my_location</span>
+              選擇出發地</label>
+            <input type="text" id="route-start" placeholder="例如：東吳大學城中校區" value="">
+          </div>
+          <div class="route-input-field" style="flex: 1; min-width: 200px;">
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#d93025;">location_on</span>
+              選擇目的地</label>
+            <input type="text" id="route-end" placeholder="例如：士林捷運站" value="">
+          </div>
+          <div class="route-input-field" style="flex: 0 0 100%; margin-top: 12px;">
+            <label><span class="material-symbols-outlined" style="font-size:18px; color:#fbbc04;">commute</span>
+              選擇交通方式</label>
+            <select id="route-mode"
+              style="padding: 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-size: 15px; outline: none; background: #fff; cursor: pointer;">
+              <option value="driving">🚗 汽 / 機車 (優先走主要幹道)</option>
+              <option value="cycling">🚲 自行車 (優先走河濱或單車道)</option>
+              <option value="walking">🚶 步行 (允許穿越巷弄與人行道)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-calculate-route" id="btn-calc-route" onclick="callPythonRoutingAPI()">
+          <span class="material-symbols-outlined">route</span> 啟動演算法計算健康路線
+        </button>
+
+        <div class="route-results-area" id="route-results-container">
+          <h3 style="font-size: 18px; margin-bottom: 16px; color: #1f1f1f;">運算完成！為您推薦以下路線：</h3>
+          <div id="route-cards-wrapper"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/routing-engine.js"></script>
+</body>
+
+</html>

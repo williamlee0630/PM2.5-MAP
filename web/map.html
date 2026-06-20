@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>台北 PM2.5 即時空污地圖 | 空污共犯</title>
+  <meta name="description" content="視覺化呈現大台北地區即時 PM2.5 濃度分佈，街道級空氣品質熱區動態地圖。" />
+  <meta name="keywords" content="PM2.5 地圖, 台北空污, 即時地圖, 空氣品質熱區, Leaflet, 空污共犯" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="台北 PM2.5 即時空污地圖 | 空污共犯" />
+  <meta property="og:description" content="視覺化呈現大台北地區即時 PM2.5 濃度分佈，街道級空氣品質熱區動態地圖。" />
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item">
+      <span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span>
+      <span class="menu-text">健康防護導航</span>
+    </a>
+    <a href="news.html" class="menu-item"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item active"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="menu-text">設定與說明</span>
+      <div class="settings-dot"></div>
+    </a>
+  </aside>
+
+  <main class="main-content">
+    <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
+      <div class="marquee-content" id="dynamic-marquee">資料讀取中...</div>
+    </a>
+
+    <noscript>
+      <div style="padding: 20px; background: #fff3cd; color: #856404; font-size: 14px; text-align: center;">
+        <p>此頁面需要 JavaScript 才能載入互動式 PM2.5 空污地圖。台北地區 PM2.5 數據即時更新中。</p>
+      </div>
+    </noscript>
+
+    <div id="view-map" class="view-section active">
+      <div id="map" aria-label="台北市 PM2.5 即時空污熱區地圖" role="application"></div>
+      <div class="legend">
+        <div style="font-weight: 700; margin-bottom: 4px;">PM2.5 濃度（µg/m³）</div>
+        <div><span class="legend-dot" style="background:#00e400"></span>良好 0 - 15.4</div>
+        <div><span class="legend-dot" style="background:#ffff00"></span>普通 15.5 - 35.4</div>
+        <div><span class="legend-dot" style="background:#ff7e00"></span>對敏感族群不健康 35.5 - 54.4</div>
+        <div><span class="legend-dot" style="background:#ff0000"></span>對所有族群不健康 54.5 - 150.4</div>
+        <div><span class="legend-dot" style="background:#8f3f97"></span>非常不健康 150.5 - 250.4</div>
+        <div><span class="legend-dot" style="background:#7e0023"></span>危害 250.5 以上</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/routing-engine.js"></script>
+</body>
+
+</html>
