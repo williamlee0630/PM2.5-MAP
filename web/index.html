@@ -30,20 +30,44 @@
   <meta property="og:title" content="空污共犯：讓每一次移動科技成為守護城市呼吸的力量" />
   <meta property="og:description" content="一起來補齊台北每一條巷弄的空氣品質地圖！查看即時 PM2.5 數據與趨勢分析。" />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pm-2-5-map.vercel.app/" />
+  <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+  <meta property="og:locale" content="zh_TW" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="空污共犯：讓每一次移動科技成為守護城市呼吸的力量" />
+  <meta name="twitter:description" content="車載微型感測器結合 IoT，建立台北街道級 PM2.5 與空氣品質觀測平台。" />
+  <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
+    "@id": "https://pm-2-5-map.vercel.app/#webapp",
     "name": "空污共犯：讓每一次移動科技成為守護城市呼吸的力量",
     "description": "透過車輛裝載移動式微型感測器，結合物聯網 (IoT) 技術，即時收集大台北地區 PM2.5 與空氣品質數據的開源平台。",
+    "url": "https://pm-2-5-map.vercel.app/",
+    "image": "https://pm-2-5-map.vercel.app/logo.jpg",
+    "inLanguage": "zh-Hant-TW",
     "applicationCategory": "EnvironmentApplication",
     "operatingSystem": "Web",
+    "isAccessibleForFree": true,
     "author": {
+      "@type": "Organization",
+      "name": "東吳大學資料科學系鄭江宇實驗室",
+      "url": "https://www.scu.edu.tw/"
+    },
+    "creator": {
       "@type": "Organization",
       "name": "東吳大學資料科學系鄭江宇實驗室"
     },
     "keywords": "台北空氣品質, PM2.5, 移動空污感測, 智在家鄉, 物聯網感測",
+    "featureList": [
+      "台北街道級 PM2.5 即時地圖",
+      "車載微型空污感測資料",
+      "低 PM2.5 曝露健康路線規劃",
+      "PM2.5 趨勢圖表與分級分析",
+      "開放資料檢視與 CSV 下載"
+    ],
     "mentions": [
       {
         "@type": "WebPage",
@@ -94,6 +118,46 @@
   }
   </script>
 
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "@id": "https://pm-2-5-map.vercel.app/data#dataset",
+    "name": "空污共犯 PM2.5 車載微型感測資料",
+    "description": "由車載移動式微型感測器收集的大台北地區 PM2.5 濃度、GPS 定位與時間戳記資料，用於街道級空氣品質觀測、圖表分析與低污染路線規劃。",
+    "url": "https://pm-2-5-map.vercel.app/data",
+    "inLanguage": "zh-Hant-TW",
+    "isAccessibleForFree": true,
+    "spatialCoverage": {
+      "@type": "Place",
+      "name": "大台北地區"
+    },
+    "temporalCoverage": "2026/..",
+    "keywords": ["PM2.5", "空氣品質", "台北", "IoT", "車載感測器", "開放資料"],
+    "creator": {
+      "@type": "Organization",
+      "name": "東吳大學資料科學系鄭江宇實驗室"
+    },
+    "measurementTechnique": "Plantower PMS5003 微型雷射粉塵感測器與 GPS 定位",
+    "variableMeasured": [
+      {
+        "@type": "PropertyValue",
+        "name": "PM2.5 濃度",
+        "unitText": "µg/m³"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "GPS 座標"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "觀測時間"
+      }
+    ]
+  }
+  </script>
+
+  <link rel="canonical" href="https://pm-2-5-map.vercel.app/" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />

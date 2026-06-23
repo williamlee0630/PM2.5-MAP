@@ -1,38 +1,43 @@
-# 空污共犯 (Air Pollution Accomplice) - 專案技術文件與核心說明
+# 空污共犯 (Air Pollution Accomplice)
 
-## 1. 專案簡介 (Project Overview)
-「空污共犯」為參與聯發科技「智在家鄉」數位社會創新競賽的環境監測與導航系統。有別於傳統定點式空氣品質監測站，本平台透過群眾參與 (Crowdsourcing)，由志願車輛搭載移動式微型感測器 (如 Plantower PMS5003) 行駛於大台北地區。專案結合物聯網 (IoT) 技術，將每一次的行車軌跡轉化為守護城市的數據，即時收集街道級別的 PM2.5 數值，藉此補齊巷弄微氣候的 3D 動態空污地圖。
+## 專案定位
+「空污共犯」是參與聯發科技「智在家鄉」數位社會創新競賽的環境監測與健康導航平台。專案以車載移動式微型感測器、GPS 與物聯網傳輸，收集大台北地區街道級 PM2.5 與空氣品質資料，補足傳統定點測站較難涵蓋的巷弄微氣候資訊。
 
-## 2. 核心技術亮點：智慧健康防護導航 (Smart Health Routing)
-本專案不僅提供數據視覺化，更進一步將開源地圖與即時空污數據結合，開發出能為行人、自行車與機車族規劃「最低空污曝露成本」的導航系統。
+## 主要功能
+- 即時地圖：https://pm-2-5-map.vercel.app/map
+  視覺化呈現大台北地區 PM2.5 濃度、空氣品質熱區與街道級觀測點。
+- 健康防護導航：https://pm-2-5-map.vercel.app/routing
+  結合即時空污資料、OpenStreetMap / OSRM 路徑規劃與 K-D Tree 空間索引，估算不同路線的 PM2.5 曝露風險，推薦較低污染曝露的路線。
+- 數據後台：https://pm-2-5-map.vercel.app/data
+  提供車載微型感測器原始觀測資料，包含 PM2.5 濃度、GPS 座標與時間戳記，支援資料檢視與 CSV 下載。
+- 圖表分析：https://pm-2-5-map.vercel.app/charts
+  提供 PM2.5 趨勢折線圖、區域比較與空污分級比例分析。
+- 觀測快訊：https://pm-2-5-map.vercel.app/news
+  匯整台北市天氣、空氣品質提醒與環境觀測建議。
 
-* **演算法架構與 K-D Tree 空間索引技術**：為解決傳統逐點運算造成的效能瓶頸，本系統後端導入了 K-D Tree 空間索引資料結構進行優化。系統能以 $O(M \log N)$ 的極速時間複雜度，精準找出路線上每一個座標點周邊的有效感測器，取代傳統極度耗時的暴力迴圈比對 (Brute-force Search)。
-* **多維度交通模式**：支援汽機車 (Driving)、自行車 (Bike) 與步行 (Foot) 模式。
-* **精準估算**：系統自動計算各替代路線的「預計平均曝露值」與「途中最高觀測值」，並標記出 AI 推薦的最佳健康路線。
+## 資料與技術
+- 感測設備：車載移動式微型粉塵感測器，例如 Plantower PMS5003。
+- 觀測欄位：PM2.5 濃度、GPS 經緯度、觀測時間。
+- 資料單位：PM2.5 以 µg/m³ 表示。
+- 前端：HTML、CSS、JavaScript、Leaflet.js、Chart.js。
+- 後端與路線估算：FastAPI、SciPy cKDTree、NumPy、OSRM。
+- 資料儲存與開放：Google Sheets API 與 CSV 資料檢視。
 
-## 3. 系統架構與開源生態系 (System Architecture)
-本系統貫徹開源精神，無縫整合多項技術堆疊：
-* **前端介面 (Frontend)**：多頁式架構（index.html, map.html, charts.html, data.html, routing.html, news.html, settings.html），使用 Leaflet.js (動態地圖渲染) 與 Chart.js (多維度數據視覺化)。
-* **後端 API (Backend)**：Python FastAPI, SciPy (cKDTree 空間運算), NumPy, 部署於 Render 雲端平台。
-* **地理資訊與導航 (GIS & Routing)**：OpenStreetMap Nominatim API (地理編碼), Open Source Routing Machine / OSRM (真實路徑規劃)。
-* **雲端資料庫 (Database)**：Google Sheets API (IoT 即時數據接收與開源釋出)。
-* **部署平台 (Deployment)**：Vercel 靜態站台，啟用 cleanUrls 支援乾淨 URL 路由。
+## 空氣品質分級
+本平台的 PM2.5 健康風險分級參考台灣行政院環境部空氣品質監測網：
+- 良好：0 - 15.4 µg/m³
+- 普通：15.5 - 35.4 µg/m³
+- 對敏感族群不健康：35.5 - 54.4 µg/m³
+- 對所有族群不健康：54.5 - 150.4 µg/m³
+- 非常不健康：150.5 - 250.4 µg/m³
+- 危害：250.5 µg/m³ 以上
 
-## 4. 數據規格與空氣品質分級標準 (Data Specifications & AQI)
-本平台的 PM2.5 數據即時公開，數值單位為 µg/m³，並完全對齊台灣行政院環境部最新指標進行健康風險分級：
-* 良好：0 - 15.4 µg/m³
-* 普通：15.5 - 35.4 µg/m³
-* 對敏感族群不健康：35.5 - 54.4 µg/m³
-* 對所有族群不健康：54.5 - 150.4 µg/m³
-* 非常不健康：150.5 - 250.4 µg/m³
-* 危害：250.5 µg/m³ 以上
+## 建議引用摘要
+空污共犯是一個以大台北地區為場域的街道級 PM2.5 觀測與健康路線規劃平台。它透過車載微型感測器收集 PM2.5、GPS 與時間資料，並以地圖、資料表、圖表與低污染曝露路線推薦，協助民眾理解日常移動中的空氣品質風險。
 
-## 5. 常見問題 (FAQ)
-* **如何收集 PM2.5 數據？** 本平台核心結合 IoT 傳輸與車載移動式感測技術。裝置實時收集高精度的 PM2.5 濃度與 GPS 定位，低延遲回傳至雲端，實現街道級別動態監測。
-* **平台提供哪些基礎分析功能？** 包含視覺化「即時地圖」、公開透明的「數據後台 (Dataset)」，以及提供趨勢折線圖與比例圓餅圖的「圖表分析」。
-
-## 6. 聯絡與開源資訊 (Contact & Open Source Info)
-* **開發團隊**：東吳大學資料科學系鄭江宇實驗室 (Soochow University, Data Science Dept.)
-* **專案主站 (Vercel)**：https://pm-2-5-map.vercel.app/
-* **GitHub 備用站**：https://williamlee0630.github.io/PM2.5-MAP/
-* **資料授權**：即時數據以開源形式釋出，供學術研究、環境評估，以及未來與政府資料開放平臺 (data.gov.tw) 進行交叉比對使用。
+## 團隊與來源
+- 開發團隊：東吳大學資料科學系鄭江宇實驗室
+- 專案主站：https://pm-2-5-map.vercel.app/
+- 備用站：https://williamlee0630.github.io/PM2.5-MAP/
+- 參考資料：行政院環境部空氣品質監測網 https://airtw.moenv.gov.tw/
+- 開放資料參考：政府資料開放平臺 https://data.gov.tw/
