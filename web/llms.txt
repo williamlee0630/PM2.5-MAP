@@ -38,6 +38,5 @@
 ## 團隊與來源
 - 開發團隊：東吳大學資料科學系鄭江宇實驗室
 - 專案主站：https://pm-2-5-map.vercel.app/
-- 備用站：https://williamlee0630.github.io/PM2.5-MAP/
 - 參考資料：行政院環境部空氣品質監測網 https://airtw.moenv.gov.tw/
 - 開放資料參考：政府資料開放平臺 https://data.gov.tw/
