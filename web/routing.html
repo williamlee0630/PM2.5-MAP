@@ -28,12 +28,28 @@
   <meta property="og:description" content="AI 演算法結合即時空污數據，為您規劃曝露風險最低的健康路線。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/routing" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="智慧健康防護導航 — 低 PM2.5 路線規劃 | 空污共犯" />
   <meta name="twitter:description" content="結合即時空污資料與 K-D Tree 空間索引，推薦低 PM2.5 曝露路線。" />
   <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+    {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"WebPage","url":"https://pm-2-5-map.vercel.app/routing","name":"智慧健康防護導航","description":"比較替代路線與群眾 PM2.5 感測資料，提供較低曝露路線的實驗性參考。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/routing#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"SoftwareApplication","name":"智慧健康防護導航","applicationCategory":"NavigationApplication","operatingSystem":"Web","url":"https://pm-2-5-map.vercel.app/routing","description":"以替代路線和群眾 PM2.5 感測資料估算相對曝露風險的測試功能。"},
+    {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/routing#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"健康防護導航","item":"https://pm-2-5-map.vercel.app/routing"}]},
+    {"@type":"FAQPage","mainEntity":[
+      {"@type":"Question","name":"健康路線是如何計算的？","acceptedAnswer":{"@type":"Answer","text":"系統比較導航服務提供的替代路線，並將路線附近最新可用的群眾 PM2.5 感測值納入相對曝露估算。"}},
+      {"@type":"Question","name":"結果可以取代醫療或官方建議嗎？","acceptedAnswer":{"@type":"Answer","text":"不可以。此功能仍在測試，只提供路線比較參考；敏感族群應依醫療專業與官方空品資訊行動。"}},
+      {"@type":"Question","name":"為什麼有時無法產生路線？","acceptedAnswer":{"@type":"Answer","text":"地址解析、導航服務、感測資料覆蓋或後端服務暫時不可用，都可能使計算失敗。"}}
+    ]}
+  ]}
+  </script>
 
   <link rel="canonical" href="https://pm-2-5-map.vercel.app/routing" />
   <link rel="stylesheet" href="styles.css" />
@@ -47,7 +63,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
     <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
     <a href="routing.html" class="menu-item active">
@@ -59,13 +75,14 @@
     <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
     <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
     <div class="sidebar-spacer"></div>
     <a href="settings.html" class="menu-item">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
     <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
@@ -79,6 +96,7 @@
     </noscript>
 
     <div id="view-routing" class="view-section active">
+      <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">健康防護導航</span></nav>
       <div class="routing-container">
         <h1 class="routing-header-title">智慧健康防護導航 <span
             style="font-size: 14px; background: #e6f4ea; color: #0d6b3a; padding: 4px 8px; border-radius: 4px; vertical-align: middle;">Beta
@@ -86,6 +104,23 @@
         <p class="routing-desc">
           本功能串接 Python 後端演算法與 K-D Tree 空間索引技術。系統將會抓取導航 API 的多條替代路線，並與雲端樞紐的即時微型感測網進行交叉運算，為您規劃出曝露風險最低的「黃金健康路線」。
         </p>
+
+        <article class="geo-overview">
+          <p class="geo-summary">輸入起點、終點與交通方式後，系統比較替代路線附近最新可用的 PM2.5 感測值，提供相對較低曝露的路線參考。</p>
+          <h2>使用前須知</h2>
+          <div class="geo-answer-grid">
+            <section class="geo-answer-card"><h3>這是相對比較</h3><p>結果是在當次可取得的替代路線與感測資料間比較，不代表絕對無污染。</p></section>
+            <section class="geo-answer-card"><h3>資料有時間差</h3><p>路線附近可能沒有即時點位；系統只能依當下可用資料估算。</p></section>
+            <section class="geo-answer-card"><h3>仍在測試</h3><p>地址解析、導航服務與後端皆可能暫時無法回應，請保留替代方案。</p></section>
+          </div>
+          <section class="geo-faq" aria-labelledby="routing-faq-title"><h2 id="routing-faq-title">常見問題</h2>
+            <details><summary>健康路線是如何計算的？</summary><p>系統比較導航服務提供的替代路線，並將路線附近最新可用的群眾 PM2.5 感測值納入相對曝露估算。</p></details>
+            <details><summary>結果可以取代醫療或官方建議嗎？</summary><p>不可以。此功能仍在測試，只提供路線比較參考；敏感族群應依醫療專業與官方空品資訊行動。</p></details>
+            <details><summary>為什麼有時無法產生路線？</summary><p>地址解析、導航服務、感測資料覆蓋或後端服務暫時不可用，都可能使計算失敗。</p></details>
+          </section>
+          <footer class="geo-provenance">功能與內容維護：東吳大學資料科學系鄭江宇實驗室｜最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜此功能為研究測試，不構成醫療或安全保證。</footer>
+          <nav class="geo-related-links" aria-label="相關頁面"><a href="map.html">先看即時地圖</a><a href="news.html">查核環境快訊</a></nav>
+        </article>
 
         <div class="route-input-group" style="flex-wrap: wrap;">
           <div class="route-input-field" style="flex: 1; min-width: 200px;">

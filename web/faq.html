@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-5SLL635P');</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TYP2X3XK1R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-TYP2X3XK1R');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM2.5 移動空污感測常見問題 | 空污共犯</title>
+  <meta name="description" content="整理空污共犯 PM2.5 移動感測、即時地圖、資料判讀、健康導航、更新頻率與使用限制等常見問題。" />
+  <meta name="keywords" content="PM2.5 FAQ, 移動空污感測, 空污地圖, 群眾感測, 資料限制, 空污共犯" />
+  <meta name="author" content="東吳大學資料科學系鄭江宇實驗室" />
+  <meta property="og:title" content="PM2.5 移動空污感測常見問題 | 空污共犯" />
+  <meta property="og:description" content="一次理解移動式 PM2.5 感測、資料更新、地圖判讀、健康導航與使用限制。" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://pm-2-5-map.vercel.app/faq" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
+  <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+  <meta property="og:locale" content="zh_TW" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PM2.5 移動空污感測常見問題 | 空污共犯" />
+  <meta name="twitter:description" content="整理移動感測、資料判讀、更新頻率、健康導航與限制。" />
+  <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+  <link rel="canonical" href="https://pm-2-5-map.vercel.app/faq" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="icon" href="favicon.png" type="image/png" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+      {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"WebPage","@id":"https://pm-2-5-map.vercel.app/faq#webpage","url":"https://pm-2-5-map.vercel.app/faq","name":"PM2.5 移動空污感測常見問題","description":"整理空污共犯的移動感測、資料判讀、更新頻率、健康導航與使用限制。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/faq#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/faq#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"常見問題","item":"https://pm-2-5-map.vercel.app/faq"}]},
+      {"@type":"FAQPage","url":"https://pm-2-5-map.vercel.app/faq","mainEntity":[
+        {"@type":"Question","name":"空污共犯是什麼？","acceptedAnswer":{"@type":"Answer","text":"空污共犯是以車載微型感測器、GPS 與網路回傳資料建立的台北地區 PM2.5 群眾觀測與研究展示平台。"}},
+        {"@type":"Question","name":"移動式感測和固定測站有什麼差別？","acceptedAnswer":{"@type":"Answer","text":"移動式感測可增加街道與巷弄的空間覆蓋，但設備、位置與回傳條件較不一致；固定測站則依官方程序維護，兩者用途不同。"}},
+        {"@type":"Question","name":"地圖上的顏色代表什麼？","acceptedAnswer":{"@type":"Answer","text":"顏色對應頁面圖例中的 PM2.5 濃度區間，數值越高代表該次感測到的細懸浮微粒濃度越高。"}},
+        {"@type":"Question","name":"資料多久更新一次？","acceptedAnswer":{"@type":"Answer","text":"頁面會定期讀取最新可用資料；地圖、圖表與資料表的實際時間應以各頁顯示或資料列時間戳記為準。"}},
+        {"@type":"Question","name":"沒有點位是否代表空氣品質良好？","acceptedAnswer":{"@type":"Answer","text":"不是。沒有點位只代表當時沒有可用回傳資料，不能據此判定該區域污染程度。"}},
+        {"@type":"Question","name":"群眾感測資料可以取代官方監測嗎？","acceptedAnswer":{"@type":"Answer","text":"不能。本平台適合觀察局部空間差異與研究趨勢，健康警示與正式政策判讀仍應以環境部等官方資料為準。"}},
+        {"@type":"Question","name":"健康防護導航如何選路？","acceptedAnswer":{"@type":"Answer","text":"導航會比較候選路線附近的可用 PM2.5 感測資料，提供較低曝露路線的實驗性參考，但不保證即時路況或個人健康結果。"}},
+        {"@type":"Question","name":"為什麼圖表可能和官方數值不同？","acceptedAnswer":{"@type":"Answer","text":"資料來源、感測器規格、採樣位置、時間與校正方式不同，都可能造成數值差異。"}},
+        {"@type":"Question","name":"原始資料可能有哪些限制？","acceptedAnswer":{"@type":"Answer","text":"資料可能包含缺值、位置偏差、設備差異、短時間波動與覆蓋不均，分析前應先檢查時間與空間完整性。"}},
+        {"@type":"Question","name":"如何查核最新官方空氣品質？","acceptedAnswer":{"@type":"Answer","text":"可前往行政院環境部空氣品質監測網，查詢官方測站、AQI 與健康建議。"}}
+      ]}
+    ]
+  }
+  </script>
+</head>
+
+<body>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
+    <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
+    <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
+    <a href="routing.html" class="menu-item"><span class="material-symbols-outlined" style="color: #0f9d58;">directions_run</span><span class="menu-text">健康防護導航</span></a>
+    <a href="news.html" class="menu-item"><span class="material-symbols-outlined">campaign</span><span class="menu-text">環境快訊與氣象</span></a>
+    <div class="sidebar-section-title">數據與圖表</div>
+    <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
+    <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
+    <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item active"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="menu-item"><span class="material-symbols-outlined">settings</span><span class="menu-text">設定與說明</span><div class="settings-dot"></div></a>
+  </nav>
+
+  <main class="main-content">
+    <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">常見問題</span></nav>
+    <article class="geo-overview">
+      <header>
+        <h1>PM2.5 移動空污感測常見問題</h1>
+        <p class="geo-summary">本頁集中回答空污共犯的感測方式、地圖與圖表判讀、資料更新、健康導航、官方查核與研究限制，適合第一次使用平台或需要引用資料的人快速確認適用範圍。</p>
+      </header>
+
+      <h2>先掌握三個重點</h2>
+      <ul>
+        <li>本平台主要觀察台北地區群眾移動感測的 PM2.5 空間差異，不是官方固定測站。</li>
+        <li>沒有資料不代表沒有污染；任何判讀都要同時檢查點位、時間、設備與覆蓋範圍。</li>
+        <li>健康警示、法規或正式決策請以環境部空氣品質監測網等官方來源為準。</li>
+      </ul>
+
+      <section class="geo-faq" aria-labelledby="faq-basic-title">
+        <h2 id="faq-basic-title">平台與感測方式</h2>
+        <details><summary>空污共犯是什麼？</summary><p>空污共犯是以車載微型感測器、GPS 與網路回傳資料建立的台北地區 PM2.5 群眾觀測與研究展示平台。</p></details>
+        <details><summary>移動式感測和固定測站有什麼差別？</summary><p>移動式感測可增加街道與巷弄的空間覆蓋，但設備、位置與回傳條件較不一致；固定測站則依官方程序維護，兩者用途不同。</p></details>
+        <details><summary>資料多久更新一次？</summary><p>頁面會定期讀取最新可用資料；地圖、圖表與資料表的實際時間應以各頁顯示或資料列時間戳記為準。</p></details>
+      </section>
+
+      <section class="geo-faq" aria-labelledby="faq-reading-title">
+        <h2 id="faq-reading-title">地圖與資料判讀</h2>
+        <details><summary>地圖上的顏色代表什麼？</summary><p>顏色對應頁面圖例中的 PM2.5 濃度區間，數值越高代表該次感測到的細懸浮微粒濃度越高。</p></details>
+        <details><summary>沒有點位是否代表空氣品質良好？</summary><p>不是。沒有點位只代表當時沒有可用回傳資料，不能據此判定該區域污染程度。</p></details>
+        <details><summary>為什麼圖表可能和官方數值不同？</summary><p>資料來源、感測器規格、採樣位置、時間與校正方式不同，都可能造成數值差異。</p></details>
+        <details><summary>原始資料可能有哪些限制？</summary><p>資料可能包含缺值、位置偏差、設備差異、短時間波動與覆蓋不均，分析前應先檢查時間與空間完整性。</p></details>
+      </section>
+
+      <section class="geo-faq" aria-labelledby="faq-use-title">
+        <h2 id="faq-use-title">健康導航與官方查核</h2>
+        <details><summary>群眾感測資料可以取代官方監測嗎？</summary><p>不能。本平台適合觀察局部空間差異與研究趨勢，健康警示與正式政策判讀仍應以環境部等官方資料為準。</p></details>
+        <details><summary>健康防護導航如何選路？</summary><p>導航會比較候選路線附近的可用 PM2.5 感測資料，提供較低曝露路線的實驗性參考，但不保證即時路況或個人健康結果。</p></details>
+        <details><summary>如何查核最新官方空氣品質？</summary><p>可前往<a href="https://airtw.moenv.gov.tw/" rel="noopener noreferrer">行政院環境部空氣品質監測網</a>，查詢官方測站、AQI 與健康建議。</p></details>
+      </section>
+
+      <footer class="geo-provenance">
+        <p>內容提供：東吳大學資料科學系鄭江宇實驗室｜最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜資料依據：平台公開頁面與環境部空氣品質監測資訊。本文不構成醫療建議或官方空品判定。</p>
+        <nav class="geo-related-links" aria-label="相關頁面"><a href="map.html">查看即時地圖</a><a href="data.html">檢視原始資料</a><a href="charts.html">閱讀圖表趨勢</a><a href="routing.html">了解健康導航</a></nav>
+      </footer>
+    </article>
+  </main>
+
+  <script src="js/common.js"></script>
+</body>
+
+</html>

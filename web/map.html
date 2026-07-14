@@ -28,12 +28,30 @@
   <meta property="og:description" content="視覺化呈現大台北地區即時 PM2.5 濃度分佈，街道級空氣品質熱區動態地圖。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/map" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="台北 PM2.5 即時空污地圖 | 空污共犯" />
   <meta name="twitter:description" content="查看大台北地區街道級 PM2.5 濃度與空氣品質熱區。" />
   <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+      {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"WebPage","@id":"https://pm-2-5-map.vercel.app/map#webpage","url":"https://pm-2-5-map.vercel.app/map","name":"台北 PM2.5 即時空污地圖","description":"以群眾感測資料呈現台北地區 PM2.5 濃度與空間分布，協助辨識局部熱點。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/map#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/map#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"即時地圖","item":"https://pm-2-5-map.vercel.app/map"}]},
+      {"@type":"FAQPage","mainEntity":[
+        {"@type":"Question","name":"這張地圖涵蓋哪些範圍？","acceptedAnswer":{"@type":"Answer","text":"目前主要呈現台北地區參與者上傳的 PM2.5 感測資料；沒有回傳資料的區域不代表空氣品質良好。"}},
+        {"@type":"Question","name":"地圖顏色要如何解讀？","acceptedAnswer":{"@type":"Answer","text":"顏色依頁面圖例對應 PM2.5 濃度區間，數值越高代表當下感測到的細懸浮微粒濃度越高。"}},
+        {"@type":"Question","name":"地圖能取代官方空品監測嗎？","acceptedAnswer":{"@type":"Answer","text":"不能。本平台是群眾感測與研究展示，可能受感測器、位置與回傳時間影響；健康決策仍應查核環境部等官方資訊。"}}
+      ]}
+    ]
+  }
+  </script>
 
   <link rel="canonical" href="https://pm-2-5-map.vercel.app/map" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -48,7 +66,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
     <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
     <a href="routing.html" class="menu-item">
@@ -60,13 +78,14 @@
     <a href="map.html" class="menu-item active"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
     <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
     <div class="sidebar-spacer"></div>
     <a href="settings.html" class="menu-item">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
     <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
@@ -80,7 +99,32 @@
     </noscript>
 
     <div id="view-map" class="view-section active">
-      <div id="map" aria-label="台北市 PM2.5 即時空污熱區地圖" role="application"></div>
+      <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">即時地圖</span></nav>
+      <article class="geo-overview">
+        <h1>台北 PM2.5 即時空污地圖</h1>
+        <p class="geo-summary">這張地圖以群眾感測資料呈現台北地區 PM2.5 的空間分布，適合快速辨識局部熱點與比較鄰近區域；濃度單位為 μg/m³。</p>
+        <h2>這張地圖可以回答什麼？</h2>
+        <div class="geo-answer-grid">
+          <section class="geo-answer-card"><h3>如何解讀顏色</h3><p>依地圖圖例判讀濃度區間；顏色越偏紅紫，代表感測到的 PM2.5 濃度越高。</p></section>
+          <section class="geo-answer-card"><h3>資料如何更新</h3><p>頁面載入後讀取最新可用回傳資料；個別點位的時間與覆蓋率可能不同。</p></section>
+          <section class="geo-answer-card"><h3>使用限制</h3><p>無資料區不等於低污染，群眾感測值也可能受到設備、位置與環境干擾。</p></section>
+        </div>
+        <h2>建議判讀步驟</h2>
+        <ol>
+          <li>先確認地圖是否成功載入點位，再查看圖例對應的濃度單位與區間。</li>
+          <li>比較鄰近多個點位及其時間，不用單一瞬間數值代表整個行政區。</li>
+          <li>遇到高值、缺值或健康疑慮時，到環境部空氣品質監測網交叉查核官方測站與 AQI。</li>
+        </ol>
+        <section class="geo-faq" aria-labelledby="map-faq-title">
+          <h2 id="map-faq-title">常見問題</h2>
+          <details><summary>這張地圖涵蓋哪些範圍？</summary><p>目前主要呈現台北地區參與者上傳的 PM2.5 感測資料；沒有回傳資料的區域不代表空氣品質良好。</p></details>
+          <details><summary>地圖顏色要如何解讀？</summary><p>顏色依下方圖例對應 PM2.5 濃度區間，數值越高代表當下感測到的細懸浮微粒濃度越高。</p></details>
+          <details><summary>地圖能取代官方空品監測嗎？</summary><p>不能。本平台是群眾感測與研究展示，健康決策仍應查核環境部等官方資訊。</p></details>
+        </section>
+        <footer class="geo-provenance">內容提供：東吳大學資料科學系鄭江宇實驗室｜最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜主要參考：環境部空氣品質資訊。動態點位以頁面實際載入時間為準。</footer>
+        <nav class="geo-related-links" aria-label="相關頁面"><a href="charts.html">查看統計圖表</a><a href="data.html">檢視原始資料</a><a href="routing.html">使用健康導航</a></nav>
+      </article>
+      <div id="map" class="geo-map-canvas" aria-label="台北市 PM2.5 即時空污熱區地圖" role="application"></div>
       <div class="legend">
         <div style="font-weight: 700; margin-bottom: 4px;">PM2.5 濃度（µg/m³）</div>
         <div><span class="legend-dot" style="background:#00e400"></span>良好 0 - 15.4</div>

@@ -28,12 +28,27 @@
   <meta property="og:description" content="地圖互動設定、感測器校正說明，以及聯絡我們申請參與。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/settings" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="系統設定與說明 | 空污共犯" />
   <meta name="twitter:description" content="查看地圖設定、感測器校正說明與專案參與資訊。" />
   <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+    {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"WebPage","url":"https://pm-2-5-map.vercel.app/settings","name":"系統設定與資料說明","description":"說明地圖顯示、追蹤、熱點與時間範圍等使用者端設定。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/settings#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/settings#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"設定與說明","item":"https://pm-2-5-map.vercel.app/settings"}]},
+    {"@type":"FAQPage","mainEntity":[
+      {"@type":"Question","name":"設定會修改原始資料嗎？","acceptedAnswer":{"@type":"Answer","text":"不會。這些選項只控制目前瀏覽器中的地圖呈現、篩選與互動方式，不會改寫雲端原始紀錄。"}},
+      {"@type":"Question","name":"原始模式與聚合模式有什麼不同？","acceptedAnswer":{"@type":"Answer","text":"原始模式顯示個別回傳點，聚合模式將鄰近資料整理後呈現；兩者適合的判讀尺度不同。"}},
+      {"@type":"Question","name":"設定會保存嗎？","acceptedAnswer":{"@type":"Answer","text":"部分選項可能保存在目前瀏覽器；清除網站資料、使用其他裝置或無痕模式時可能恢復預設值。"}}
+    ]}
+  ]}
+  </script>
 
   <link rel="canonical" href="https://pm-2-5-map.vercel.app/settings" />
   <link rel="stylesheet" href="styles.css" />
@@ -47,7 +62,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
     <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
     <a href="routing.html" class="menu-item">
@@ -59,13 +74,14 @@
     <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
     <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
     <div class="sidebar-spacer"></div>
     <a href="settings.html" class="menu-item active">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
     <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
@@ -79,8 +95,26 @@
     </noscript>
 
     <div id="view-settings" class="view-section active">
+      <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">設定與說明</span></nav>
       <section class="settings-container">
         <h1 class="settings-title">系統設定與說明</h1>
+
+        <article class="geo-overview">
+          <p class="geo-summary">這些選項只影響目前瀏覽器中的地圖呈現、篩選與互動，不會修改雲端原始資料。調整後若結果異常，可重新整理或恢復預設值。</p>
+          <h2>設定的影響範圍</h2>
+          <div class="geo-answer-grid">
+            <section class="geo-answer-card"><h3>顯示模式</h3><p>原始模式看個別點位，聚合模式適合快速觀察區域分布。</p></section>
+            <section class="geo-answer-card"><h3>時間與熱點</h3><p>時間篩選和熱點標示只改變畫面中納入的資料範圍。</p></section>
+            <section class="geo-answer-card"><h3>個人瀏覽器</h3><p>部分偏好可能保存在本機；更換裝置或清除網站資料後可能失效。</p></section>
+          </div>
+          <section class="geo-faq" aria-labelledby="settings-faq-title"><h2 id="settings-faq-title">常見問題</h2>
+            <details><summary>設定會修改原始資料嗎？</summary><p>不會。這些選項只控制目前瀏覽器中的地圖呈現、篩選與互動方式，不會改寫雲端原始紀錄。</p></details>
+            <details><summary>原始模式與聚合模式有什麼不同？</summary><p>原始模式顯示個別回傳點，聚合模式將鄰近資料整理後呈現；兩者適合的判讀尺度不同。</p></details>
+            <details><summary>設定會保存嗎？</summary><p>部分選項可能保存在目前瀏覽器；清除網站資料、使用其他裝置或無痕模式時可能恢復預設值。</p></details>
+          </section>
+          <footer class="geo-provenance">說明維護：東吳大學資料科學系鄭江宇實驗室｜最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜功能仍可能隨版本調整。</footer>
+          <nav class="geo-related-links" aria-label="相關頁面"><a href="map.html">套用設定查看地圖</a><a href="data.html">查看不受設定改寫的資料</a></nav>
+        </article>
 
         <div class="setting-card">
           <div class="setting-card-title">地圖互動設定</div>

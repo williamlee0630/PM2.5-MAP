@@ -28,12 +28,27 @@
   <meta property="og:description" content="PM2.5 濃度趨勢折線圖、各行政區比較長條圖、空污分級圓餅圖。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/charts" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="PM2.5 數據視覺化分析圖表 | 空污共犯" />
   <meta name="twitter:description" content="用折線圖、長條圖與分級比例分析台北 PM2.5 觀測趨勢。" />
   <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+    {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"WebPage","url":"https://pm-2-5-map.vercel.app/charts","name":"PM2.5 數據視覺化與趨勢分析","description":"比較地區 PM2.5 濃度、時間趨勢與整體狀態分布。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/charts#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/charts#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"圖表分析","item":"https://pm-2-5-map.vercel.app/charts"}]},
+    {"@type":"FAQPage","mainEntity":[
+      {"@type":"Question","name":"圖表多久更新一次？","acceptedAnswer":{"@type":"Answer","text":"頁面開啟時會載入最新可用資料，前端圖表預設每 10 秒嘗試同步更新。"}},
+      {"@type":"Question","name":"長條圖、折線圖與圓餅圖分別適合看什麼？","acceptedAnswer":{"@type":"Answer","text":"長條圖適合比較地區，折線圖適合觀察時間變化，圓餅圖用於查看目前各空品狀態的資料占比。"}},
+      {"@type":"Question","name":"圖表為什麼可能與官方監測不同？","acceptedAnswer":{"@type":"Answer","text":"本頁使用群眾感測資料，設備、位置、時間與資料覆蓋率都可能不同，因此不能直接等同官方測站數值。"}}
+    ]}
+  ]}
+  </script>
 
   <link rel="canonical" href="https://pm-2-5-map.vercel.app/charts" />
   <link rel="stylesheet" href="styles.css" />
@@ -51,7 +66,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
     <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
     <a href="routing.html" class="menu-item">
@@ -63,13 +78,14 @@
     <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
     <a href="data.html" class="menu-item"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item active"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
     <div class="sidebar-spacer"></div>
     <a href="settings.html" class="menu-item">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
     <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
@@ -83,12 +99,30 @@
     </noscript>
 
     <div id="view-charts" class="view-section active">
+      <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">圖表分析</span></nav>
       <div class="data-header" style="border-bottom: none; padding-bottom: 10px;">
         <div class="data-title-group">
           <h1 style="font-size:20px;margin:0 0 4px 0;color:#1f1f1f;">多維度數據視覺化分析</h1>
           <span style="color: #444746; font-size: 14px;">資料會與地圖同步每 10 秒自動更新</span>
         </div>
       </div>
+
+      <article class="geo-overview">
+        <p class="geo-summary">用長條圖比較地區濃度、用折線圖觀察時間變化，再用圓餅圖檢視目前空品狀態分布。圖表適合找出趨勢與差異，不代表官方測站結論。</p>
+        <h2>如何選擇圖表？</h2>
+        <div class="geo-answer-grid">
+          <section class="geo-answer-card"><h3>地區比較</h3><p>用長條圖快速比較不同區域在同一批資料中的 PM2.5 濃度。</p></section>
+          <section class="geo-answer-card"><h3>時間趨勢</h3><p>用折線圖觀察濃度上升、下降與短期波動，並搭配時間篩選器縮小範圍。</p></section>
+          <section class="geo-answer-card"><h3>狀態分布</h3><p>用圓餅圖查看資料落在各濃度狀態的占比，避免只依單一點位下結論。</p></section>
+        </div>
+        <section class="geo-faq" aria-labelledby="charts-faq-title"><h2 id="charts-faq-title">常見問題</h2>
+          <details><summary>圖表多久更新一次？</summary><p>頁面開啟時會載入最新可用資料，前端圖表預設每 10 秒嘗試同步更新。</p></details>
+          <details><summary>長條圖、折線圖與圓餅圖分別適合看什麼？</summary><p>長條圖適合比較地區，折線圖適合觀察時間變化，圓餅圖用於查看目前各空品狀態的資料占比。</p></details>
+          <details><summary>圖表為什麼可能與官方監測不同？</summary><p>本頁使用群眾感測資料，設備、位置、時間與資料覆蓋率都可能不同，因此不能直接等同官方測站數值。</p></details>
+        </section>
+        <footer class="geo-provenance">內容提供：東吳大學資料科學系鄭江宇實驗室｜最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜動態圖表以頁面實際載入時間為準。</footer>
+        <nav class="geo-related-links" aria-label="相關頁面"><a href="map.html">返回即時地圖</a><a href="data.html">核對原始資料</a></nav>
+      </article>
 
       <div class="charts-wrapper">
 

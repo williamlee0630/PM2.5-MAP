@@ -28,12 +28,28 @@
   <meta property="og:description" content="公開透明的車載微型感測器原始數據紀錄，支援 CSV 下載與即時更新。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/data" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="PM2.5 原始感測數據後台 | 空污共犯" />
   <meta name="twitter:description" content="公開透明的車載 PM2.5 感測資料，包含時間、座標與濃度紀錄。" />
   <meta name="twitter:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+    {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"WebPage","url":"https://pm-2-5-map.vercel.app/data","name":"PM2.5 原始感測資料","description":"檢視與下載包含時間、濃度、空品狀態及位置欄位的群眾 PM2.5 感測資料。","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/data#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+    {"@type":"Dataset","name":"台北地區群眾 PM2.5 感測資料","description":"群眾上傳的 PM2.5 時間、濃度、空氣品質狀態與經緯度紀錄。","url":"https://pm-2-5-map.vercel.app/data","creator":{"@type":"Organization","name":"東吳大學資料科學系鄭江宇實驗室"},"spatialCoverage":{"@type":"Place","name":"台北地區"},"measurementTechnique":"行動式與微型 PM2.5 感測器群眾感測","variableMeasured":"PM2.5 濃度（μg/m³）","dateModified":"2026-07-14"},
+    {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/data#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"},{"@type":"ListItem","position":2,"name":"數據後台","item":"https://pm-2-5-map.vercel.app/data"}]},
+    {"@type":"FAQPage","mainEntity":[
+      {"@type":"Question","name":"資料表有哪些欄位？","acceptedAnswer":{"@type":"Answer","text":"主要欄位包含時間戳記、PM2.5 濃度、空氣品質狀態與經緯度；實際欄位以載入後的表頭為準。"}},
+      {"@type":"Question","name":"CSV 下載內容與畫面相同嗎？","acceptedAnswer":{"@type":"Answer","text":"下載功能以目前取得的完整資料建立 CSV，可能包含畫面篩選前的資料與縣市地區欄位。"}},
+      {"@type":"Question","name":"可以把資料當成官方監測結果嗎？","acceptedAnswer":{"@type":"Answer","text":"不可以。這是群眾感測研究資料，可能受設備校正、位置、回傳時間與覆蓋率影響。"}}
+    ]}
+  ]}
+  </script>
 
   <link rel="canonical" href="https://pm-2-5-map.vercel.app/data" />
   <link rel="stylesheet" href="styles.css" />
@@ -47,7 +63,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
     <a href="index.html" class="menu-item"><span class="material-symbols-outlined">home</span><span class="menu-text">專案介紹</span></a>
     <a href="routing.html" class="menu-item">
@@ -59,13 +75,14 @@
     <a href="map.html" class="menu-item"><span class="material-symbols-outlined">explore</span><span class="menu-text">即時地圖</span></a>
     <a href="data.html" class="menu-item active"><span class="material-symbols-outlined">dataset</span><span class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item"><span class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
     <div class="sidebar-spacer"></div>
     <a href="settings.html" class="menu-item">
       <span class="material-symbols-outlined">settings</span>
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
     <a href="news.html" class="freshness-marquee" title="點擊查看環境局最新快訊與觀測建議">
@@ -79,6 +96,7 @@
     </noscript>
 
     <div id="view-data" class="view-section active">
+      <nav class="geo-breadcrumb" aria-label="麵包屑"><a href="index.html">首頁</a><span aria-hidden="true">›</span><span aria-current="page">數據後台</span></nav>
       <div class="data-header">
         <div class="data-title-group">
           <h1 style="font-size:20px;margin:0 0 4px 0;color:#1f1f1f;">Google Sheets 原始數據紀錄</h1>
@@ -103,6 +121,29 @@
           </button>
         </div>
       </div>
+
+      <article class="geo-overview">
+        <p class="geo-summary">此頁列出群眾感測紀錄，主要包含時間、PM2.5 濃度、空品狀態與位置欄位，並提供 CSV 下載。引用資料前請先確認時間範圍、覆蓋區域與異常值。</p>
+        <h2>使用資料前先確認</h2>
+        <div class="geo-answer-grid">
+          <section class="geo-answer-card"><h3>欄位定義</h3><p>PM2.5 以 μg/m³ 表示；時間與位置用於判斷紀錄的時空背景。</p></section>
+          <section class="geo-answer-card"><h3>更新狀態</h3><p>頁面載入時讀取最新可用資料，也可使用「更新數據」重新取得。</p></section>
+          <section class="geo-answer-card"><h3>資料限制</h3><p>群眾感測可能有缺值、位置偏差或設備差異，不宜直接視為官方監測結果。</p></section>
+        </div>
+        <h2>引用與分析前的步驟</h2>
+        <ol>
+          <li>先記錄下載或查閱日期，並確認每筆資料本身的觀測時間與位置欄位。</li>
+          <li>檢查缺值、重複紀錄、異常高低值及空間覆蓋，避免直接把資料列平均後下結論。</li>
+          <li>研究引用需說明這是群眾移動感測資料，並以官方測站或其他可信來源進行交叉驗證。</li>
+        </ol>
+        <section class="geo-faq" aria-labelledby="data-faq-title"><h2 id="data-faq-title">常見問題</h2>
+          <details><summary>資料表有哪些欄位？</summary><p>主要欄位包含時間戳記、PM2.5 濃度、空氣品質狀態與經緯度；實際欄位以載入後的表頭為準。</p></details>
+          <details><summary>CSV 下載內容與畫面相同嗎？</summary><p>下載功能以目前取得的完整資料建立 CSV，可能包含畫面篩選前的資料與縣市地區欄位。</p></details>
+          <details><summary>可以把資料當成官方監測結果嗎？</summary><p>不可以。這是群眾感測研究資料，可能受設備校正、位置、回傳時間與覆蓋率影響。</p></details>
+        </section>
+        <footer class="geo-provenance">資料維護：東吳大學資料科學系鄭江宇實驗室｜頁面最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜各筆資料時間以表格實際內容為準。</footer>
+        <nav class="geo-related-links" aria-label="相關頁面"><a href="map.html">查看空間分布</a><a href="charts.html">查看統計趨勢</a></nav>
+      </article>
 
       <div id="data-scroll-container" style="overflow-y: auto; height: calc(100vh - 100px);">
         <table>

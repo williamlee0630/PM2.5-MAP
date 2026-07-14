@@ -17,6 +17,18 @@
     gtag('js', new Date());
     gtag('config', 'G-TYP2X3XK1R');
   </script>
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"Organization","@id":"https://pm-2-5-map.vercel.app/#organization","name":"東吳大學資料科學系鄭江宇實驗室","url":"https://pm-2-5-map.vercel.app/"},
+      {"@type":"WebSite","@id":"https://pm-2-5-map.vercel.app/#website","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯 PM2.5 智慧監測平台","publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"WebPage","@id":"https://pm-2-5-map.vercel.app/#webpage","url":"https://pm-2-5-map.vercel.app/","name":"空污共犯：讓每一次移動科技成為守護城市呼吸的力量","description":"以車載微型感測器建立台北街道級 PM2.5 群眾觀測、資料分析與健康路線研究平台。","datePublished":"2026-06-09","dateModified":"2026-07-14","author":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"publisher":{"@id":"https://pm-2-5-map.vercel.app/#organization"},"isPartOf":{"@id":"https://pm-2-5-map.vercel.app/#website"},"breadcrumb":{"@id":"https://pm-2-5-map.vercel.app/#breadcrumb"},"inLanguage":"zh-Hant-TW"},
+      {"@type":"BreadcrumbList","@id":"https://pm-2-5-map.vercel.app/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://pm-2-5-map.vercel.app/"}]}
+    ]
+  }
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -31,6 +43,7 @@
   <meta property="og:description" content="一起來補齊台北每一條巷弄的空氣品質地圖！查看即時 PM2.5 數據與趨勢分析。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pm-2-5-map.vercel.app/" />
+  <meta property="og:site_name" content="空污共犯 PM2.5 智慧監測平台" />
   <meta property="og:image" content="https://pm-2-5-map.vercel.app/logo.jpg" />
   <meta property="og:locale" content="zh_TW" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -170,7 +183,7 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5SLL635P"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-  <aside class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="主要導覽">
     <div class="menu-toggle" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></div>
 
     <a href="index.html" class="menu-item active"><span
@@ -192,6 +205,8 @@
         class="menu-text">數據後台</span></a>
     <a href="charts.html" class="menu-item"><span
         class="material-symbols-outlined">bar_chart</span><span class="menu-text">圖表分析</span></a>
+    <a href="faq.html" class="menu-item"><span
+        class="material-symbols-outlined">help</span><span class="menu-text">常見問題</span></a>
 
     <div class="sidebar-spacer"></div>
 
@@ -200,7 +215,7 @@
       <span class="menu-text">設定與說明</span>
       <div class="settings-dot"></div>
     </a>
-  </aside>
+  </nav>
 
   <main class="main-content">
 
@@ -250,7 +265,7 @@
               <strong>🔬 科學分級依據：</strong>本平台的 PM2.5 濃度健康風險分級，皆參考並對齊
               <a href="https://airtw.moenv.gov.tw/" target="_blank" rel="noopener noreferrer"
                 style="color: #1a73e8; font-weight: bold; text-decoration: none;">行政院環境部空氣品質監測網 (AQI)</a>
-              之最新指標，確保車載感測數據能與國家級觀測站標準具備高度可比較性。
+              之指標建立風險分級語意，方便讀者交叉查核；微型感測結果不等同國家級觀測站數值。
             </p>
           </blockquote>
           <p>
@@ -275,6 +290,18 @@
               <p>提供直觀的 PM2.5 濃度折線圖與空污分級狀態的比例分佈。</p>
             </article>
           </div>
+
+          <section class="geo-overview" aria-labelledby="home-trust-title">
+            <h2 id="home-trust-title">資料來源、更新與使用限制</h2>
+            <p>平台資料由車載微型感測器回傳，並以環境部空氣品質資訊作為分級與查核參考。即時數值可能受設備校正、移動位置、環境干擾、網路回傳與資料覆蓋率影響。</p>
+            <div class="geo-answer-grid">
+              <section class="geo-answer-card"><h3>內容提供者</h3><p>東吳大學資料科學系鄭江宇實驗室。</p></section>
+              <section class="geo-answer-card"><h3>更新方式</h3><p>感測資料依裝置回傳動態更新；說明內容定期人工審閱。</p></section>
+              <section class="geo-answer-card"><h3>決策限制</h3><p>本平台供研究與環境觀察，不取代官方監測、醫療意見或安全保證。</p></section>
+            </div>
+            <footer class="geo-provenance">內容最後審閱：<time datetime="2026-07-14">2026 年 7 月 14 日</time>｜動態資料時間以各頁實際顯示為準。</footer>
+            <nav class="geo-related-links" aria-label="主要功能"><a href="map.html">即時地圖</a><a href="data.html">原始資料</a><a href="charts.html">圖表分析</a><a href="routing.html">健康導航</a></nav>
+          </section>
         </article>
       </div>
     </div>

@@ -1064,3 +1064,126 @@ tr:hover {
     gap: 12px;
   }
 }
+/* Shared GEO baseline: visible context, provenance, FAQ and breadcrumbs. */
+.geo-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 20px;
+  color: #5f6368;
+  font-size: 13px;
+  background: #f8fafd;
+  border-bottom: 1px solid #e0e3e7;
+}
+
+.geo-breadcrumb a {
+  color: #0b57d0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.geo-overview {
+  margin: 16px 20px 20px;
+  padding: 20px;
+  color: #202124;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.12);
+}
+
+.geo-overview h1,
+.geo-overview h2,
+.geo-overview h3 {
+  color: #1f1f1f;
+  line-height: 1.35;
+}
+
+.geo-overview h1 {
+  margin: 0 0 12px;
+  font-size: 26px;
+}
+
+.geo-overview h2 {
+  margin: 20px 0 8px;
+  font-size: 20px;
+}
+
+.geo-overview h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.geo-overview p,
+.geo-overview li {
+  line-height: 1.75;
+}
+
+.geo-summary {
+  margin: 0;
+  font-size: 16px;
+}
+
+.geo-answer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.geo-answer-card {
+  padding: 14px;
+  background: #f8fafd;
+  border-left: 4px solid #1a73e8;
+  border-radius: 8px;
+}
+
+.geo-faq details {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: #f8fafd;
+  border: 1px solid #e0e3e7;
+  border-radius: 8px;
+}
+
+.geo-faq summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.geo-faq details p {
+  margin: 8px 0 0;
+}
+
+.geo-provenance {
+  margin-top: 20px;
+  padding-top: 14px;
+  color: #5f6368;
+  font-size: 13px;
+  border-top: 1px solid #e0e3e7;
+}
+
+.geo-related-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.geo-related-links a {
+  color: #0b57d0;
+  font-weight: 600;
+}
+
+#map.geo-map-canvas {
+  min-height: 520px;
+  height: 65vh;
+}
+
+@media (max-width: 640px) {
+  .geo-overview {
+    margin: 12px;
+    padding: 16px;
+  }
+}
