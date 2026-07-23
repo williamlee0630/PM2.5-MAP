@@ -1,0 +1,141 @@
+{
+  "name": "空污共犯 PM2.5 即時地圖_六級分級穩定版",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "pm25-map",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6826d476-91c3-4a03-9378-318b4d090024",
+      "name": "Webhook Map",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c0f78996-2bb7-4878-8a1a-22db360e3327"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ",
+          "mode": "list",
+          "cachedResultName": "空污共犯數據",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "工作表1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcRopeeqnT786iB9m6Jd8oQH34S2AUE9Sp5-4eCgwYQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dpCSXMw4CiCXFY1k",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "b2645f1c-8379-4a77-a90f-1a6a7d38bf64",
+      "name": "Google Sheets",
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(item => item.json);\n\nconst data = rows\n  .map(row => ({\n    timestamp: String(row.timestamp ?? ''),\n    latitude: Number(row.latitude),\n    longitude: Number(row.longitude),\n    pm25: Number(row.pm25),\n    satellites: Number(row.satellites ?? 0),\n  }))\n  .filter(row =>\n    Number.isFinite(row.latitude) &&\n    Number.isFinite(row.longitude) &&\n    Number.isFinite(row.pm25)\n  );\n\nconst latest = data.length > 0 ? data[data.length - 1] : null;\nconst updateTime = latest?.timestamp || '--';\nconst center = latest ? [latest.latitude, latest.longitude] : [25.094, 121.546];\n\n// Avoid accidentally closing the script tag if sheet data contains \"<\".\nconst safeDataJson = JSON.stringify(data).replace(/</g, '\\\\u003c');\nconst safeCenterJson = JSON.stringify(center);\n\nconst html = `<!DOCTYPE html>\n<html lang=\"zh-Hant\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>空污共犯 PM2.5 即時監測</title>\n  <link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" />\n  <style>\n    html, body {\n      margin: 0;\n      padding: 0;\n      width: 100%;\n      height: 100%;\n      font-family: Arial, \"Microsoft JhengHei\", sans-serif;\n      background: #f4f4f4;\n    }\n\n    #map {\n      width: 100vw;\n      height: 100vh;\n    }\n\n    .info-box {\n      position: absolute;\n      top: 16px;\n      left: 70px;\n      z-index: 999;\n      background: rgba(0, 0, 0, 0.72);\n      color: #fff;\n      padding: 12px 16px;\n      border-radius: 10px;\n      font-size: 15px;\n      line-height: 1.6;\n      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);\n    }\n\n    .info-title {\n      font-weight: 700;\n      font-size: 16px;\n    }\n\n    .legend {\n      position: absolute;\n      right: 18px;\n      bottom: 32px;\n      z-index: 999;\n      background: rgba(0, 0, 0, 0.72);\n      color: #fff;\n      padding: 12px 16px;\n      border-radius: 10px;\n      font-size: 14px;\n      line-height: 1.9;\n      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);\n    }\n\n    .legend-title {\n      font-weight: 700;\n      margin-bottom: 4px;\n    }\n\n    .legend-dot {\n      display: inline-block;\n      width: 13px;\n      height: 13px;\n      border-radius: 50%;\n      margin-right: 7px;\n      vertical-align: -1px;\n    }\n\n    .empty-message {\n      position: absolute;\n      top: 50%;\n      left: 50%;\n      transform: translate(-50%, -50%);\n      z-index: 999;\n      background: rgba(0, 0, 0, 0.72);\n      color: #fff;\n      padding: 16px 20px;\n      border-radius: 10px;\n      font-size: 16px;\n      display: none;\n    }\n\n    @media (max-width: 720px) {\n      .info-box {\n        top: 12px;\n        left: 58px;\n        right: 10px;\n        font-size: 13px;\n        padding: 10px 12px;\n      }\n\n      .legend {\n        right: 10px;\n        bottom: 24px;\n        font-size: 12px;\n      }\n    }\n  </style>\n</head>\n<body>\n  <div id=\"map\"></div>\n\n  <div class=\"info-box\">\n    <div class=\"info-title\">空污共犯 PM2.5 即時監測</div>\n    <div>更新時間：${updateTime}</div>\n    <div>資料筆數：${data.length}</div>\n    <div>頁面每 10 秒自動重新整理</div>\n  </div>\n\n  <div id=\"emptyMessage\" class=\"empty-message\">目前沒有可顯示的 PM2.5 資料</div>\n\n  <div class=\"legend\">\n    <div class=\"legend-title\">PM2.5 濃度（µg/m³）</div>\n    <div><span class=\"legend-dot\" style=\"background:#00e400\"></span>良好 0 - 15.4</div>\n    <div><span class=\"legend-dot\" style=\"background:#ffff00\"></span>普通 15.5 - 35.4</div>\n    <div><span class=\"legend-dot\" style=\"background:#ff7e00\"></span>對敏感族群不健康 35.5 - 54.4</div>\n    <div><span class=\"legend-dot\" style=\"background:#ff0000\"></span>對所有族群不健康 54.5 - 150.4</div>\n    <div><span class=\"legend-dot\" style=\"background:#8f3f97\"></span>非常不健康 150.5 - 250.4</div>\n    <div><span class=\"legend-dot\" style=\"background:#7e0023\"></span>危害 250.5 以上</div>\n  </div>\n\n  <script src=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\"></script>\n  <script>\n    const pm25Data = ${safeDataJson};\n    const defaultCenter = ${safeCenterJson};\n\n    function getColor(pm25) {\n      if (pm25 < 15.5) return '#00e400';   // 良好\n      if (pm25 < 35.5) return '#ffff00';   // 普通\n      if (pm25 < 54.5) return '#ff7e00';   // 對敏感族群不健康\n      if (pm25 < 150.5) return '#ff0000';  // 對所有族群不健康\n      if (pm25 < 250.5) return '#8f3f97';  // 非常不健康\n      return '#7e0023';                    // 危害\n    }\n\n    function getStatus(pm25) {\n      if (pm25 < 15.5) return '良好';\n      if (pm25 < 35.5) return '普通';\n      if (pm25 < 54.5) return '對敏感族群不健康';\n      if (pm25 < 150.5) return '對所有族群不健康';\n      if (pm25 < 250.5) return '非常不健康';\n      return '危害';\n    }\n\n    const map = L.map('map').setView(defaultCenter, 16);\n\n    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {\n      maxZoom: 19,\n      attribution: '© OpenStreetMap'\n    }).addTo(map);\n\n    if (!pm25Data.length) {\n      document.getElementById('emptyMessage').style.display = 'block';\n    } else {\n      const bounds = [];\n\n      pm25Data.forEach(function(point) {\n        const color = getColor(point.pm25);\n        const marker = L.circleMarker([point.latitude, point.longitude], {\n          radius: 8,\n          color: '#ffffff',\n          weight: 1,\n          fillColor: color,\n          fillOpacity: 0.85\n        }).addTo(map);\n\n        marker.bindPopup(\n          '<strong>PM2.5：' + point.pm25 + ' µg/m³</strong><br>' +\n          '狀態：' + getStatus(point.pm25) + '<br>' +\n          '時間：' + point.timestamp + '<br>' +\n          '衛星數：' + point.satellites + '<br>' +\n          '緯度：' + point.latitude + '<br>' +\n          '經度：' + point.longitude\n        );\n\n        bounds.push([point.latitude, point.longitude]);\n      });\n\n      map.fitBounds(bounds, {\n        padding: [40, 40],\n        maxZoom: 17\n      });\n    }\n\n    // Single-webhook stable mode: refresh the whole page instead of fetch another webhook.\n    setTimeout(function() {\n      window.location.reload();\n    }, 10000);\n  </script>\n</body>\n</html>`;\n\nreturn [\n  {\n    json: {\n      html,\n      rowCount: data.length,\n      updateTime,\n    }\n  }\n];"
+      },
+      "id": "d4ed36a6-2ecc-49c4-898f-82373d37505a",
+      "name": "Build HTML With Embedded PM25 Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store, no-cache, must-revalidate, proxy-revalidate"
+              }
+            ]
+          }
+        }
+      },
+      "id": "8b7b020f-cf51-4b5e-96b8-f21322416004",
+      "name": "Respond HTML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Map": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Build HTML With Embedded PM25 Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML With Embedded PM25 Data": {
+      "main": [
+        [
+          {
+            "node": "Respond HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
